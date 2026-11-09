@@ -1,0 +1,179 @@
+{
+  "schema": "agentic-bootstrap-manifest/v1",
+  "generator_version": "0.2.0",
+  "platforms": [
+    "claude",
+    "codex",
+    "pi",
+    "opencode",
+    "omp"
+  ],
+  "updated_at": "2026-11-09T18:27:26+00:00",
+  "files": {
+    ".agentic/bin/docs-check": {
+      "sha256": "31a23e8189eb5077217248240fbd04a0f5ac53a255c50a13920aa55e9c517c00",
+      "executable": true,
+      "mutable": false
+    },
+    ".agentic/bin/validate": {
+      "sha256": "a0aeac0d303e82ecdb5becfc7e5d597f86aceab113b2b84341122809e465855e",
+      "executable": true,
+      "mutable": false
+    },
+    ".agentic/config.json": {
+      "sha256": "115938ea781b7f9c273ddd3ba3b616a61485016236fdb318d9603d61d8ebf155",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/agentic-bootstrap/SKILL.md": {
+      "sha256": "34c051e3bbdb73a46e6646d2e27c49061f8cbc9caf52dad4a656fe6fa838dd52",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/architecture-decision/SKILL.md": {
+      "sha256": "5900634095efa33248ec470b7edb8d3cc1bfd9fa9c70fdf93297eaf898d472f6",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/docs-check/SKILL.md": {
+      "sha256": "5ee4f597f7c892832bb8b6144040e2b37d8dc4c50b0261a8f34b6a9971687235",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/semantic-versioning/SKILL.md": {
+      "sha256": "6e45cb6f4cced3a19c3f1ba2765491643c0e4d53ebe18ae81a0a90ea5cddb67b",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/agents/architecture-reviewer.md": {
+      "sha256": "606c211ced5bca36810d3d23196489ce8dafdbfb90575a3a483545af5fe450a0",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/agentic-bootstrap/SKILL.md": {
+      "sha256": "34c051e3bbdb73a46e6646d2e27c49061f8cbc9caf52dad4a656fe6fa838dd52",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/architecture-decision/SKILL.md": {
+      "sha256": "5900634095efa33248ec470b7edb8d3cc1bfd9fa9c70fdf93297eaf898d472f6",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/docs-check/SKILL.md": {
+      "sha256": "5ee4f597f7c892832bb8b6144040e2b37d8dc4c50b0261a8f34b6a9971687235",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/semantic-versioning/SKILL.md": {
+      "sha256": "6e45cb6f4cced3a19c3f1ba2765491643c0e4d53ebe18ae81a0a90ea5cddb67b",
+      "executable": false,
+      "mutable": false
+    },
+    ".codex/agents/architecture-reviewer.toml": {
+      "sha256": "89e86813846d92c4082f2da0b824cb55aac979f858cb5b5c8a7fcc6ca6a49838",
+      "executable": false,
+      "mutable": false
+    },
+    ".codex/config.toml": {
+      "sha256": "d4c670da3c2404921a1ab177f4e5405449bc8321d713cc0b42b8046201fd33cc",
+      "executable": false,
+      "mutable": false
+    },
+    ".github/workflows/docs-check.yml": {
+      "sha256": "b2b61146ac997d683eef7315a264f83308a51c517ad3860c95b69b802115d364",
+      "executable": false,
+      "mutable": false
+    },
+    ".omp/RULES.md": {
+      "sha256": "b4c2b37e6eb45379c5aa18479dec4be752685c40ed2c44b0523731a683cdf3bd",
+      "executable": false,
+      "mutable": false
+    },
+    ".opencode/agents/architecture-reviewer.md": {
+      "sha256": "179074fdc69ba4ad772971640c89ad1ddf3f5be312fd274fc1d6ecd9d44b387e",
+      "executable": false,
+      "mutable": false
+    },
+    ".opencode/commands/adr-new.md": {
+      "sha256": "ed62a494012e9942e5e170c8b2b5c5adb121e347ca66e961d3bb50e02adb787d",
+      "executable": false,
+      "mutable": false
+    },
+    ".opencode/commands/docs-check.md": {
+      "sha256": "01b9c8d39d087ba559b89f08ca2fa7094b7664fad1c082ed719586521a13d7a8",
+      "executable": false,
+      "mutable": false
+    },
+    "AGENTS.md": {
+      "sha256": "7a546e2a79ce7d0ea1a87a51ab0e66be1bc2f96e08ecba004ca00339dc306f4e",
+      "executable": false,
+      "mutable": true
+    },
+    "CLAUDE.md": {
+      "sha256": "e8e81f6d799757ab9cf23736906fbf493ef2e70ae4b41f74ecb296465eae48ec",
+      "executable": false,
+      "mutable": false
+    },
+    "docs/AGENT_GUIDED.md": {
+      "sha256": "126b9c980a22b6aacfaa892b09134202edc6e47be5b2b910501ae7ba0d95be21",
+      "executable": false,
+      "mutable": true
+    },
+    "docs/ARCHITECTURE.md": {
+      "sha256": "45eb933cb034e5f5b568672b05e23fcf1fee1d6a6255f94dc5f4c80655f8a585",
+      "executable": false,
+      "mutable": true
+    },
+    "docs/DEVELOPMENT_PROCESS.md": {
+      "sha256": "4ce04f98173a84086614baca19069f944b0fd02ef1c4ffca4f07b85c5709f544",
+      "executable": false,
+      "mutable": true
+    },
+    "docs/PLATFORM_SUPPORT.md": {
+      "sha256": "8b486bbc175dc01e71566d802af5194d653230ccb3a4a0ef87d536ff64940504",
+      "executable": false,
+      "mutable": false
+    },
+    "docs/README.md": {
+      "sha256": "71fb29ab30431fb7716a8bff005a6de4a044e22609d6f2d9f1b2bb223ff94fa7",
+      "executable": false,
+      "mutable": true
+    },
+    "docs/RELEASING.md": {
+      "sha256": "e43012e3a80fc492960eab8828aaab1502f779bccd4e42a11cdf32d0e5af6e8a",
+      "executable": false,
+      "mutable": true
+    },
+    "docs/SECURITY_AUDIT.md": {
+      "sha256": "9f095685675a6f1b3b25dbdb9f6371e2c2c184ba8df6e47827a0497a10c49134",
+      "executable": false,
+      "mutable": true
+    },
+    "docs/TASK_BREAKDOWN.md": {
+      "sha256": "a493aa1a719b95abf84bb183925bd6d2e2137dc7e24bae680b76ed25434260f5",
+      "executable": false,
+      "mutable": true
+    },
+    "docs/adr/README.md": {
+      "sha256": "c2f34f20977eee5b10a5a4e402d8f786f6e05cfb34a8646b27033c1e831e1dce",
+      "executable": false,
+      "mutable": true
+    },
+    "docs/adr/template.md": {
+      "sha256": "7590bd3618a846e6d023b9c8c06d7870ae53a9d0bed9066c4e7032e34ac93985",
+      "executable": false,
+      "mutable": true
+    },
+    "opencode.json": {
+      "sha256": "ada72858930ec55a496af7fc987e84dd5543262719b9d122e506b0fb96eeb28a",
+      "executable": false,
+      "mutable": false
+    },
+    "tasks/task-template.md": {
+      "sha256": "c8500ba2a29407627df2dbe18ceb894796c457b7f65a9a58fb66ea24508bab0b",
+      "executable": false,
+      "mutable": true
+    }
+  }
+}
