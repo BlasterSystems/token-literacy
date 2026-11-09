@@ -12,13 +12,13 @@ Use the `semantic-versioning` skill for version bumps, releases, and Git tags.
 
 ## Repository configuration
 
-Before the first release, document:
+1. **Authoritative version:** `cmd/tokenledger/main.go` (`var version`). `make build VERSION=x.y.z` overrides the build-time value for local artifacts; the source constant is the release version.
+2. **Derived references:** `CHANGELOG.md` and the README quickstart. There are no generated version files.
+3. **Required commands:** `make test`, `make build`, `.agentic/bin/validate`, `.agentic/bin/docs-check`; CI runs `go vet`, `go test`, and `go build` on Ubuntu, macOS, and Windows.
+4. **Release branch:** `main`. Before v0.1.0, protect it with a pull-request requirement and the CI check; the initial scaffold predates that protection.
+5. **Registry/deployment:** GitHub Releases only in v0.1. No package registry, container image, or hosted service.
 
-1. The authoritative version file or files.
-2. Commands that refresh derived version references and examples.
-3. Required test, validation, build, and package-smoke commands.
-4. The release branch and any protected-branch requirements.
-5. Whether a package registry or deployment is part of a release.
+Artifact naming for v0.1: `tokenledger_<version>_<os>_<arch>.tar.gz` on macOS and `.zip` on Windows, plus `checksums.txt`. The Go binary is built with `CGO_ENABLED=0`; the optional Tauri shell (M5) is a separate per-OS artifact.
 
 Do not create a tag until these facts are known. Keep this file focused and link to detailed deployment documentation rather than duplicating it.
 
