@@ -2,7 +2,7 @@
 
 A local-first token ledger for **Claude Code** and **OpenAI Codex CLI**. It separates fresh input, cache reads, cache writes, and output per turn, then shows the cache economics that a single "total tokens" number hides.
 
-**Status: pre-alpha (M0 scaffold).** The Go walking skeleton serves `/health`; the collector, dashboard, and adapters are planned in [`docs/PLAN.md`](docs/PLAN.md). Do not treat the command list below as implemented yet.
+**Status: M1 collector live.** The Go collector ingests Claude Code OTLP telemetry into the SQLite ledger, with `setup`, `doctor`, and query APIs working. Codex rollout adapter (M2), dashboard charts (M3), and packaging (M4+) are planned in [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Why
 
@@ -42,16 +42,17 @@ flowchart LR
 - **Codex**: `token_usage_record` entries from `~/.codex/sessions/**/rollout-*.jsonl`; no configuration required.
 - **Tauri v2** (M5): optional menu-bar/tray shell that supervises the same Go binary and opens the dashboard. The Go binary is complete without it.
 
-## Planned interface
+## Interface
 
 ```bash
-tokenledger setup      # configure Claude Code OTel; verify Codex sessions
-tokenledger up         # collector + dashboard on 127.0.0.1:4318
-tokenledger doctor     # config, harness versions, last event age
-tokenledger export --csv --since 7d
-tokenledger install    # per-user autostart
-tokenledger uninstall
+tokenledger setup [--dry-run] [--force] [--endpoint URL]   # configure Claude Code OTel (implemented)
+tokenledger up [--port 4318] [--db PATH]                    # collector on 127.0.0.1 (implemented)
+tokenledger doctor                                          # installation diagnostics (implemented)
+tokenledger export --csv --since 7d                         # planned (M4)
+tokenledger install | uninstall                             # per-user autostart (planned, M4)
 ```
+
+HTTP surface: `POST /v1/traces`, `/v1/metrics`, `/v1/logs` (OTLP/HTTP JSON, gzip accepted), `GET /health`, `GET /api/summary`, `GET /api/rows`, `GET /api/sessions`. The dashboard (M3) and `/export.csv|json` land with M3.
 
 ## Scope
 

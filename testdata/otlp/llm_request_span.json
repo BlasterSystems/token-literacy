@@ -1,0 +1,41 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          { "key": "service.name", "value": { "stringValue": "claude-code" } }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": { "name": "claude-code", "version": "2.1.268" },
+          "spans": [
+            {
+              "name": "claude_code.llm_request",
+              "traceId": "0x5b8aa5a2d2c872e8321cf37308d69d2e",
+              "spanId": "0x051581bf3cb55c13",
+              "startTimeUnixNano": "1700000000000000000",
+              "endTimeUnixNano": "1700000002000000000",
+              "attributes": [
+                { "key": "input_tokens", "value": { "intValue": "707" } },
+                { "key": "output_tokens", "value": { "intValue": "11" } },
+                { "key": "cache_read_tokens", "value": { "intValue": "28032" } },
+                { "key": "cache_creation_tokens", "value": { "intValue": "0" } },
+                { "key": "model", "value": { "stringValue": "claude-sonnet-4-5-20250929" } },
+                { "key": "request_id", "value": { "stringValue": "req_01HTZ0TEST" } },
+                { "key": "session.id", "value": { "stringValue": "sess-abc123" } },
+                { "key": "query_source", "value": { "stringValue": "interaction" } },
+                { "key": "duration_ms", "value": { "intValue": "2000" } },
+                { "key": "ttft_ms", "value": { "intValue": "350" } },
+                { "key": "stop_reason", "value": { "stringValue": "end_turn" } },
+                { "key": "attempt", "value": { "intValue": "0" } },
+                { "key": "success", "value": { "boolValue": true } },
+                { "key": "terminal", "value": { "boolValue": true } }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
