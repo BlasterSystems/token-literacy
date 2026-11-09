@@ -53,7 +53,7 @@ Establish the governed repository: agentic-bootstrap scaffold, Go + optional Tau
 - Configuration validation: `.agentic/bin/validate` → `Configuration validation passed`.
 - Tests: `go test ./...` → `internal/server` ok; `cmd/tokenledger` has no test files.
 - Build: `make build` → `bin/tokenledger`; `tokenledger version` → `0.1.0-dev`; `/health` returned 200 with `status=ok`.
-- Documentation check: pending first clean-tree run.
+- Documentation check: `.agentic/bin/docs-check` → exit 0 (`Docs check: diff is empty; perform a manual review if changes are uncommitted or outside Git`).
 
 ## Review
 
