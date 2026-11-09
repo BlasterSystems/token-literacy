@@ -1,0 +1,18 @@
+{
+  "project": {
+    "name": "token-literacy",
+    "description": "Cross-harness token ledger for Claude Code and Codex: fresh vs cached input, output, and API-equivalent cost, served from a local dashboard.",
+    "build_command": "make build",
+    "test_command": "make test",
+    "run_command": "make run",
+    "ticket_prefix": "TL"
+  },
+  "features": {
+    "platforms": "all",
+    "mcp": false,
+    "agents": true,
+    "github": true,
+    "scheduled_audit": false,
+    "hooks": false
+  }
+}

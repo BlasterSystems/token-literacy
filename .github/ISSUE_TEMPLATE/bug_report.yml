@@ -1,0 +1,75 @@
+name: Bug report
+description: Something is wrong with the collector, dashboard, or setup.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste prompts, tool output, API keys, or subscription tokens. Redact home paths and account identifiers.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: The observed behavior and the exact command or screen.
+      placeholder: "tokenledger doctor reports ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: The smallest sequence that shows the problem. Use redacted fixtures where possible.
+    validations:
+      required: true
+
+  - type: input
+    id: tokenledger-version
+    attributes:
+      label: tokenledger version
+      description: Output of `tokenledger version`.
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 15.6 arm64 / Windows 11 24H2 x64"
+    validations:
+      required: true
+
+  - type: input
+    id: harnesses
+    attributes:
+      label: Harness versions
+      description: Claude Code and/or Codex versions, if relevant.
+      placeholder: "claude 2.1.x, codex 0.167.x"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or health output
+      description: Output of `tokenledger doctor` or `/health`, with secrets removed.
+      render: text
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed prompts, tool output, tokens, API keys, and personal paths.
+          required: true

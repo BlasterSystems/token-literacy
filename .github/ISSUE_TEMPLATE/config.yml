@@ -1,0 +1,10 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Security report
+    url: https://github.com/BlasterSystems/token-literacy/security/advisories/new
+    about: Report a vulnerability privately. Do not open a public issue.
+
+  - name: Implementation plan
+    url: https://github.com/BlasterSystems/token-literacy/blob/main/docs/PLAN.md
+    about: Check the milestone scope before proposing a feature.

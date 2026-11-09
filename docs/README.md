@@ -4,6 +4,7 @@ Read only the document relevant to the current task.
 
 ## Start here
 
+- [Implementation plan](PLAN.md) — milestones, data contract, adapter mappings, acceptance, and risks.
 - [Development process](DEVELOPMENT_PROCESS.md) — implementation workflow and validation.
 - [Task breakdown](TASK_BREAKDOWN.md) — optional planning and ticket skills: install, task targets, and boundaries.
 - [Architecture](ARCHITECTURE.md) — components, boundaries, data, integrations, and operations.
@@ -15,3 +16,7 @@ Read only the document relevant to the current task.
 - [Platform support](PLATFORM_SUPPORT.md) — coding-agent capabilities and generated artifacts.
 - [Security audit](SECURITY_AUDIT.md) — optional security-audit skill: install, modes, triggers, and requirements.
 - [Releasing](RELEASING.md) — Semantic Versioning, release validation, and Git tags.
+
+## Provenance
+
+- [Scaffold answers](scaffold-answers.json) — the project metadata and feature choices passed to agentic-bootstrap.

@@ -1,0 +1,27 @@
+# Go
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+coverage.*
+
+# Tauri / Rust
+/target/
+/src-tauri/target/
+
+# Node / UI tooling (M3+)
+node_modules/
+/ui/dist/
+
+# Local ledger and fixtures with real data
+*.db
+*.db-shm
+*.db-wal
+.tokenledger/
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
