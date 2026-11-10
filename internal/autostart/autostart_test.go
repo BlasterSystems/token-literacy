@@ -3,10 +3,30 @@ package autostart
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 )
+
+// TestPureHelpers covers the OS-neutral helpers so the shared package keeps
+// meaningful coverage on runners that cannot exercise launchd or the
+// registry.
+func TestPureHelpers(t *testing.T) {
+	p := PlistPath(filepath.Join(string(filepath.Separator)+"home", "x"))
+	if filepath.Dir(p) != filepath.Join(string(filepath.Separator)+"home", "x", "Library", "LaunchAgents") {
+		t.Fatalf("plist dir = %q", filepath.Dir(p))
+	}
+	if !strings.HasSuffix(p, "tokenledger.plist") {
+		t.Fatalf("plist path = %q", p)
+	}
+	if got := xmlEscape("a<&>\"'"); got != "a&lt;&amp;&gt;\"'" {
+		t.Errorf("xmlEscape = %q", got)
+	}
+	if RegistryValueName() == "" {
+		t.Error("registry value name empty")
+	}
+}
 
 func TestInstallWritesPlist(t *testing.T) {
 	if runtime.GOOS != "darwin" {
@@ -14,7 +34,9 @@ func TestInstallWritesPlist(t *testing.T) {
 	}
 	home := t.TempDir()
 	loadLaunchd = func(string) error { return nil }
-	t.Cleanup(func() { loadLaunchd = func(plist string) error { return exec.Command("launchctl", "load", plist).Run() } })
+	t.Cleanup(func() {
+		loadLaunchd = func(plist string) error { return exec.Command("launchctl", "load", plist).Run() }
+	})
 
 	plist, err := Install("/usr/local/bin/tokenledger", home)
 	if err != nil {
