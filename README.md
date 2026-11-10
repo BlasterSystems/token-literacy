@@ -50,6 +50,15 @@ flowchart LR
 4. Complete one turn in Claude Code — a per-turn row appears within seconds. Codex history backfills automatically from `~/.codex/sessions`.
 5. `tokenledger doctor` explains anything that is not working; `tokenledger export --csv --since 7d --out article.csv` produces the article dataset.
 
+**macOS Gatekeeper:** the binaries are ad-hoc signed but not notarized (no paid Apple Developer certificate), so macOS blocks anything a browser downloaded and quarantined with *"tokenledger is damaged and can't be opened"*. The file is intact — verify the SHA-256, then clear the quarantine flag:
+
+```bash
+xattr -d com.apple.quarantine ./tokenledger          # CLI binary
+xattr -cr /Applications/TokenLedger.app              # tray shell, after copying from the DMG
+```
+
+Tools that don't go through LaunchServices (`curl -LO`, `gh release download`) don't set the flag. The tray shell is unsigned in v0.1: expect a Gatekeeper prompt on first launch even after the `xattr` step.
+
 ## Interface
 
 ```bash
@@ -72,7 +81,7 @@ Cross-builds: `make release VERSION=x.y.z` produces `darwin/{amd64,arm64}`, `win
 - macOS runs as an accessory app (menu-bar icon, no Dock icon).
 - Menu: Open dashboard, Doctor, Copy last session summary, Quit (Quit stops the sidecar).
 - The sidecar is health-polled and restarted on crash; a second launch adopts the running collector.
-- The shell is unsigned until certificates are available: macOS shows Gatekeeper, Windows shows SmartScreen — verify the SHA-256 checksums and run the Go binary directly as the alternative.
+- The shell is unsigned until certificates are available: macOS Gatekeeper and Windows SmartScreen will warn on first launch (see the Gatekeeper note in Quickstart) — verify the SHA-256 checksums and run the Go binary directly as the alternative.
 
 ## Scope
 
