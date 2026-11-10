@@ -3,11 +3,15 @@ package autostart
 import (
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestInstallWritesPlist(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("launchd plist is darwin-only")
+	}
 	home := t.TempDir()
 	loadLaunchd = func(string) error { return nil }
 	t.Cleanup(func() { loadLaunchd = func(plist string) error { return exec.Command("launchctl", "load", plist).Run() } })

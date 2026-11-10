@@ -41,13 +41,14 @@ func Acquire(path string) (*Lock, int, error) {
 		return nil, 0, err
 	}
 	l := &Lock{path: path, file: f, release: func() {
+		// Close the handle first: Windows refuses to remove open files.
+		f.Close()
 		// Only remove the file if it still holds our pid (no takeover race).
 		if data, err := os.ReadFile(path); err == nil {
 			if cur, err2 := strconv.Atoi(strings.TrimSpace(string(data))); err2 == nil && cur == pid {
 				_ = os.Remove(path)
 			}
 		}
-		f.Close()
 	}}
 	return l, 0, nil
 }

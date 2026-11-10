@@ -117,7 +117,10 @@ func installWindows(exePath string) (string, error) {
 func uninstallWindows() (string, error) {
 	key := `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
 	out, err := exec.Command("reg", "delete", key, "/v", label, "/f").CombinedOutput()
-	if err != nil && !strings.Contains(strings.ToLower(string(out)), "unable to find") {
+	if err != nil {
+		if strings.Contains(strings.ToLower(string(out)), "unable to find") {
+			return "", nil // nothing registered
+		}
 		return key, fmt.Errorf("reg delete: %v: %s", err, strings.TrimSpace(string(out)))
 	}
 	return key, nil
