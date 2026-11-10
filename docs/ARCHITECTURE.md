@@ -20,7 +20,7 @@ This document is the current high-level map of **token-literacy**. Keep it conci
 | `internal/ingest/otlp` | OTLP JSON decoder and Claude Code span/metric mapping. |
 | `internal/ingest/codex` | Rollout discovery, incremental tail, JSONL parser, replay/subagent dedupe. |
 | `internal/ledger` | SQLite schema, idempotent upsert, queries, rollups. |
-| `internal/pricing` | List-price table and API-equivalent cost calculation; unknown models are `cost_source=none`. |
+| `internal/pricing` | List-price table and API-equivalent cost calculation; unknown models default to Claude Opus 5.5 rates (`cost_source=default_price`). |
 | `internal/config` | Claude Code settings merge (JSON), Codex path discovery, backups and uninstall markers. |
 | `ui/` | Server-rendered HTML and inline SVG; no framework, CDN, or build step. |
 | `src-tauri/` (M5) | Optional Tauri v2 tray/menu-bar shell; spawns and supervises the Go binary, opens the dashboard, manages autostart. The Go binary remains complete without it. |

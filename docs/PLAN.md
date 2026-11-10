@@ -43,7 +43,7 @@ Agent bills are dominated by context replay, not output. A single "total tokens"
 - `internal/ledger`: SQLite schema (`calls`, `sessions`, `ingest_cursor`, `meta`), WAL, idempotent upsert, queries.
 - `internal/server`: OTLP/HTTP JSON ingest at `/v1/metrics`, `/v1/logs`, `/v1/traces`; gzip; `/health`; `/api/summary`, `/api/rows`.
 - `internal/ingest/otlp`: Claude Code `claude_code.llm_request` span parser; metric fallback `claude_code.token.usage` (`type=input|output|cacheRead|cacheCreation`).
-- `internal/pricing`: embedded list prices; API-equivalent cost; unknown model → `cost_source=none`.
+- `internal/pricing`: embedded list prices; API-equivalent cost; unknown model → `cost_source=default_price` (Claude Opus 5.5 rates).
 - `tokenledger setup`: merge the OTel `env` block into `~/.claude/settings.json` with backup and diff; `--dry-run`; respect `CLAUDE_CONFIG_DIR`.
 - `tokenledger doctor`: config present, collector reachable, last span age.
 - Invariant checks on ingest; malformed payloads are logged and rejected without killing the server.
@@ -167,7 +167,7 @@ Agent bills are dominated by context replay, not output. A single "total tokens"
 | `prompt_total` | INTEGER | `input_uncached + cache_read + cache_write` |
 | `total_tokens` | INTEGER | `prompt_total + output` |
 | `cost_usd` | REAL NULL | API-equivalent |
-| `cost_source` | TEXT | `list_price`, `provider_reported`, `none` |
+| `cost_source` | TEXT | `list_price`, `default_price`, `provider_reported`, `none` |
 | `started_at` | INTEGER | Epoch ms |
 | `ended_at` | INTEGER NULL | Epoch ms |
 | `duration_ms` | INTEGER NULL | Wall clock |

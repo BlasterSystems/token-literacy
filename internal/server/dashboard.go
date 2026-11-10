@@ -26,7 +26,6 @@ type dashboardData struct {
 	Banners    []string
 	Empty      string
 	ChartJSON  template.JS
-	CostStored float64
 	CostEst    float64
 	CostTotal  float64
 	CostPerOut float64
@@ -485,7 +484,6 @@ function rateSVG(data, W){
 /* ===== model pricing: OpenRouter search + cached overrides ===== */
 const $ = id => document.getElementById(id);
 let PICKED = null;
-function per1M(v){ return v == null ? '—' : '$' + (Number(v) * 1e6).toFixed(2).replace(/\.?0+$/, ''); }
 function bareName(id){ const i = id.indexOf('/'); return i < 0 ? id : id.slice(i + 1); }
 
 function fillEditor(p, modelKey){
@@ -643,7 +641,6 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		Sessions:   sessions,
 		Banners:    s.banners(r),
 		ChartJSON:  template.JS(chart),
-		CostStored: sum.CostUSD,
 		CostEst:    estUSD,
 		CostTotal:  sum.CostUSD + estUSD,
 		CostPerOut: func() float64 {
