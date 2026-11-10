@@ -1,0 +1,104 @@
+name: release
+
+# Publishes a GitHub Release with the cross-platform CLI archives and the
+# optional shell bundles. Triggered by pushing an annotated v* tag
+# (docs/RELEASING.md: push/publish only on explicit approval).
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  cli:
+    name: cli artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Build archives and release notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          scripts/build-release.sh "$VERSION"
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" {flag=1; next}
+            flag && /^## \[/ {exit}
+            flag {print}
+          ' CHANGELOG.md > dist/RELEASE-NOTES.md
+          cat dist/RELEASE-NOTES.md
+
+      - name: Upload artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/tokenledger_*_*.tar.gz
+            dist/tokenledger_*_*.zip
+            dist/checksums.txt
+          body_path: dist/RELEASE-NOTES.md
+          fail_on_unmatched_files: true
+
+  shell:
+    name: shell bundles (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            triple: aarch64-apple-darwin
+            ext: ""
+            bundles: "app,dmg"
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            triple: x86_64-pc-windows-msvc
+            ext: .exe
+            bundles: "msi,nsis"
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Build Go sidecar
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p src-tauri/binaries
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
+            -o "src-tauri/binaries/tokenledger-${{ matrix.triple }}${{ matrix.ext }}" ./cmd/tokenledger
+
+      - name: Build shell bundles
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: ${{ github.ref_name }}
+          releaseDraft: false
+          prerelease: false
+          args: --bundles ${{ matrix.bundles }}

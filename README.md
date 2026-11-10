@@ -42,6 +42,14 @@ flowchart LR
 - **Codex**: `token_usage_record` entries from `~/.codex/sessions/**/rollout-*.jsonl`; no configuration required.
 - **Tauri v2** (M5): optional menu-bar/tray shell that supervises the same Go binary and opens the dashboard. The Go binary is complete without it.
 
+## Quickstart
+
+1. Download the archive for your platform from the [latest release](https://github.com/BlasterSystems/token-literacy/releases/latest) (or `make build` from source) and verify the SHA-256 in `checksums.txt`.
+2. `tokenledger setup` — merges the Claude Code OTel env block (add `--with-codex-otel` to also configure Codex metrics). Use `--dry-run` to preview.
+3. `tokenledger up` — starts the collector and opens the dashboard at `http://127.0.0.1:4318`. A second `up` just opens the dashboard again.
+4. Complete one turn in Claude Code — a per-turn row appears within seconds. Codex history backfills automatically from `~/.codex/sessions`.
+5. `tokenledger doctor` explains anything that is not working; `tokenledger export --csv --since 7d --out article.csv` produces the article dataset.
+
 ## Interface
 
 ```bash

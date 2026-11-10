@@ -1,37 +1,55 @@
 #!/usr/bin/env bash
-# Cross-builds release artifacts and their SHA-256 checksums.
+# Cross-builds release artifacts per docs/RELEASING.md:
+#   tokenledger_<version>_<os>_<arch>.tar.gz (macOS)
+#   tokenledger_<version>_<os>_<arch>.zip    (Windows)
+#   checksums.txt
 # Usage: scripts/build-release.sh [version]  (default: 0.0.0-dev)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 VERSION="${1:-0.0.0-dev}"
-OUT="dist/tokenledger-${VERSION}"
 LDFLAGS="-s -w -X main.version=${VERSION}"
-mkdir -p dist
-rm -f "${OUT}"-*
+DIST="dist"
+mkdir -p "$DIST"
+rm -f "${DIST}"/tokenledger_"${VERSION}"_* "${DIST}/checksums.txt"
 
-build() { # goos goarch ext
-  local goos="$1" goarch="$2" ext="${3:-}"
+stage() { # goos goarch
+  local goos="$1" goarch="$2"
   echo "building ${goos}/${goarch}"
+  local bin="tokenledger"
+  [ "$goos" = "windows" ] && bin="tokenledger.exe"
   CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
-    go build -trimpath -ldflags "$LDFLAGS" -o "${OUT}-${goos}-${goarch}${ext}" ./cmd/tokenledger
+    go build -trimpath -ldflags "$LDFLAGS" -o "$DIST/$bin" ./cmd/tokenledger
+  if [ "$goos" = "windows" ]; then
+    (cd "$DIST" && zip -q "tokenledger_${VERSION}_${goos}_${goarch}.zip" "$bin")
+  else
+    (cd "$DIST" && tar -czf "tokenledger_${VERSION}_${goos}_${goarch}.tar.gz" "$bin")
+  fi
+  rm -f "$DIST/$bin"
 }
 
-build darwin arm64
-build darwin amd64
-build windows amd64 .exe
-build windows arm64 .exe
+stage darwin arm64
+stage darwin amd64
+stage windows amd64
+stage windows arm64
 
-# macOS universal binary via lipo (when available).
+# macOS universal binary via lipo (when available), shipped inside its own tarball.
 if command -v lipo >/dev/null 2>&1; then
-  lipo -create "${OUT}-darwin-arm64" "${OUT}-darwin-amd64" -output "${OUT}-darwin-universal"
+  echo "building darwin universal"
+  CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "$LDFLAGS" -o "$DIST/tokenledger-arm64" ./cmd/tokenledger
+  CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o "$DIST/tokenledger-amd64" ./cmd/tokenledger
+  lipo -create "$DIST/tokenledger-arm64" "$DIST/tokenledger-amd64" -output "$DIST/tokenledger"
+  rm -f "$DIST/tokenledger-arm64" "$DIST/tokenledger-amd64"
+  (cd "$DIST" && tar -czf "tokenledger_${VERSION}_darwin_universal.tar.gz" tokenledger)
+  rm -f "$DIST/tokenledger"
 fi
 
-# SHA-256 checksums (shasum on macOS/BSD, sha256sum on Linux).
+# SHA-256 checksums (sha256sum on Linux, shasum on macOS/BSD).
 if command -v sha256sum >/dev/null 2>&1; then
-  sha256sum "${OUT}"-* > "${OUT}.sha256"
+  (cd "$DIST" && sha256sum tokenledger_"${VERSION}"_* > checksums.txt)
 else
-  shasum -a 256 "${OUT}"-* > "${OUT}.sha256"
+  (cd "$DIST" && shasum -a 256 tokenledger_"${VERSION}"_* > checksums.txt)
 fi
-echo "artifacts in dist/:"
-ls -1 "${OUT}"-*
+
+echo "artifacts in ${DIST}/:"
+ls -1 "${DIST}"/tokenledger_"${VERSION}"_* "$DIST/checksums.txt"
