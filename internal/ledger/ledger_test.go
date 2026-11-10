@@ -250,3 +250,49 @@ PRAGMA user_version=2;`)
 		t.Fatalf("rates after migration = %+v, %v", rates, err)
 	}
 }
+
+func TestUnpricedGroups(t *testing.T) {
+	db := openTest(t)
+	now := time.Now().UnixMilli()
+	mk := func(id, model string, cost *float64, started int64) Call {
+		c := validCall()
+		c.ID, c.RequestID, c.Model, c.CostUSD, c.StartedAt = "codex:"+id, id, model, cost, started
+		return c
+	}
+	// Two unpriced models and one priced row that must be excluded.
+	if _, err := db.InsertCall(mk("r1", "m1", nil, now)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.InsertCall(mk("r2", "m2", nil, now)); err != nil {
+		t.Fatal(err)
+	}
+	priced := 1.23
+	if _, err := db.InsertCall(mk("r3", "priced-model", &priced, now)); err != nil {
+		t.Fatal(err)
+	}
+
+	groups, err := db.UnpricedGroups(RowsFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 2 {
+		t.Fatalf("groups = %+v", groups)
+	}
+	// Ordered by model: m1 before m2; the priced row is excluded.
+	if groups[0].Model != "m1" || groups[1].Model != "m2" {
+		t.Fatalf("models = %q %q", groups[0].Model, groups[1].Model)
+	}
+	for _, g := range groups {
+		if g.Calls != 1 || g.InputFresh != 707 || g.CacheRead != 28032 || g.Output != 11 {
+			t.Fatalf("group totals wrong: %+v", g)
+		}
+	}
+
+	// Harness and since filters apply.
+	if g, err := db.UnpricedGroups(RowsFilter{Harness: "claude-code"}); err != nil || len(g) != 0 {
+		t.Fatalf("harness filter = %+v %v", g, err)
+	}
+	if g, err := db.UnpricedGroups(RowsFilter{SinceMS: now + 60000}); err != nil || len(g) != 0 {
+		t.Fatalf("since filter = %+v %v", g, err)
+	}
+}

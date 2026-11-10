@@ -514,9 +514,13 @@ $('rate-save').addEventListener('click', async () => {
 async function cachePick(m){
   // Persist the catalog snapshot under its bare name so harness model ids
   // (which lack the vendor prefix) prefix-match. OpenRouter prices are
-  // per-token strings; the ledger stores USD per million tokens.
+  // per-token strings; the ledger stores USD per million tokens. Anthropic
+  // catalog ids use dotted versions ("claude-sonnet-4.5") while Claude Code
+  // telemetry reports dashed ones ("claude-sonnet-4-5-20250929"), so dots
+  // become dashes for anthropic/* ids to keep the prefix match alive.
   const p = m.pricing || {};
-  const bare = bareName(m.id);
+  let bare = bareName(m.id);
+  if (m.id.startsWith('anthropic/')) bare = bare.replace(/\./g, '-');
   const body = { model: bare, name: m.name || '', input: Number(cleanNum(perTok(p.prompt))),
     cache_read: Number(cleanNum(perTok(p.input_cache_read))), cache_write: Number(cleanNum(perTok(p.input_cache_write))),
     output: Number(cleanNum(perTok(p.completion))), source: 'openrouter' };
@@ -526,6 +530,7 @@ async function cachePick(m){
 }
 const perTok = v => v == null ? 0 : Number(v) * 1e6;
 const cleanNum = v => v === '' ? '' : String(Number(Number(v).toPrecision(12)));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 let MODELS = null;
 async function ensureCatalog(){
@@ -543,7 +548,7 @@ $('model-search').addEventListener('input', async e => {
   try { models = await ensureCatalog(); }
   catch (err) { box.innerHTML = '<span class="bs-note">Catalog unreachable — saved rates below still apply.</span>'; return; }
   const hits = models.filter(m => m.id.toLowerCase().includes(q) || (m.name||'').toLowerCase().includes(q)).slice(0, 8);
-  box.innerHTML = hits.map(m => '<button type="button" class="bs-row-btn" data-id="' + m.id + '"><span class="id">' + m.id + '</span><span class="nm">' + (m.name||'') + '</span></button>').join('') || '<span class="bs-note">No match in the OpenRouter catalog.</span>';
+  box.innerHTML = hits.map(m => '<button type="button" class="bs-row-btn" data-id="' + esc(m.id) + '"><span class="id">' + esc(m.id) + '</span><span class="nm">' + esc(m.name||'') + '</span></button>').join('') || '<span class="bs-note">No match in the OpenRouter catalog.</span>';
   box.querySelectorAll('.bs-row-btn').forEach(b => b.addEventListener('click', async () => {
     const m = models.find(x => x.id === b.dataset.id);
     PICKED = m;
@@ -560,16 +565,18 @@ async function loadSaved(){
   const list = d.rates || [];
   $('saved-block').style.display = list.length ? '' : 'none';
   $('saved-rates').innerHTML = list.map(r =>
-    '<button type="button" class="bs-row-btn" data-m="' + r.model + '">'
-    + '<span class="id">' + r.model + '</span>'
+    '<button type="button" class="bs-row-btn" data-m="' + esc(r.model) + '">'
+    + '<span class="id">' + esc(r.model) + '</span>'
     + '<span class="nm">$' + r.input + ' in · $' + r.cache_read + ' read · $' + r.output + ' out /1M</span>'
-    + '<span class="src">' + r.source + '</span>'
-    + '<span class="del" title="Remove" data-del="' + r.model + '">✕</span></button>').join('');
+    + '<span class="src">' + esc(r.source) + '</span>'
+    + '<span class="del" title="Remove" data-del="' + esc(r.model) + '">✕</span></button>').join('');
   $('saved-rates').querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', e => {
     if (e.target.dataset.del) return;
     const row = list.find(r => r.model === b.dataset.m);
+    // Stored rates are already per-1M: divide back to per-token so the
+    // editor's perTok conversion round-trips exactly.
     if (row) { PICKED = null; $('price-edit').style.display = '';
-      fillEditor({prompt: row.input, input_cache_read: row.cache_read, input_cache_write: row.cache_write, completion: row.output}, row.model); }
+      fillEditor({prompt: row.input / 1e6, input_cache_read: row.cache_read / 1e6, input_cache_write: row.cache_write / 1e6, completion: row.output / 1e6}, row.model); }
   }));
   $('saved-rates').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async e => {
     e.stopPropagation();
