@@ -54,7 +54,7 @@ flowchart LR
 
 ```bash
 xattr -d com.apple.quarantine ./tokenledger          # CLI binary
-xattr -cr /Applications/TokenLedger.app              # tray shell, after copying from the DMG
+xattr -cr /Applications/tokenledger.app              # tray shell, after copying from the DMG
 ```
 
 Tools that don't go through LaunchServices (`curl -LO`, `gh release download`) don't set the flag. The tray shell is unsigned in v0.1: expect a Gatekeeper prompt on first launch even after the `xattr` step.
