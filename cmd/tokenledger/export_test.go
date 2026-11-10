@@ -12,7 +12,7 @@ import (
 
 func TestCmdExportCSVToFile(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("HOME", dir)
+	setHome(t, dir)
 	dbPath := filepath.Join(dir, "ledger.db")
 	db, err := ledger.Open(dbPath)
 	if err != nil {
@@ -54,7 +54,7 @@ func TestCmdExportJSONRequiresChoice(t *testing.T) {
 
 func TestCmdExportMissingDB(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("HOME", dir)
+	setHome(t, dir)
 	if err := cmdExport([]string{"--csv", "--db", filepath.Join(dir, "nope.db")}); err == nil {
 		t.Fatal("missing db should error")
 	}

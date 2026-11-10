@@ -13,8 +13,15 @@ import (
 func fakeHome(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	t.Setenv("HOME", dir)
+	setHome(t, dir)
 	return dir
+}
+
+// setHome points os.UserHomeDir at dir on every platform.
+func setHome(t *testing.T, dir string) {
+	t.Helper()
+	t.Setenv("HOME", dir)        // unix
+	t.Setenv("USERPROFILE", dir) // windows
 }
 
 func TestSetupDryRunDoesNotWrite(t *testing.T) {
@@ -84,7 +91,7 @@ func TestDefaultDBPathFromEnv(t *testing.T) {
 
 func TestCmdSimulateFixture(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("HOME", dir)
+	setHome(t, dir)
 	dbPath := filepath.Join(dir, "ledger.db")
 	fixtureDir := t.TempDir()
 	copyPath := func(dst, src string) {
@@ -109,7 +116,7 @@ func TestCmdSimulateFixture(t *testing.T) {
 
 func TestCmdInstallUninstallFakeHome(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("HOME", dir)
+	setHome(t, dir)
 	// install would run launchctl load and fail outside a real session;
 	// uninstall must be safe and idempotent regardless.
 	if err := cmdUninstall([]string{}); err != nil {

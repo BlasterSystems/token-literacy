@@ -61,9 +61,10 @@ jobs:
         run: scripts/build-release.sh 0.0.0-ci
 
       - name: Verify checksums
+        working-directory: dist
         run: |
           if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum -c dist/tokenledger-0.0.0-ci.sha256
+            sha256sum -c checksums.txt
           else
-            shasum -a 256 -c dist/tokenledger-0.0.0-ci.sha256
+            shasum -a 256 -c checksums.txt
           fi
