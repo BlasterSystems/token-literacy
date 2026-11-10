@@ -30,7 +30,7 @@ import (
 	"github.com/BlasterSystems/token-literacy/internal/singleinstance"
 )
 
-var version = "0.1.0-dev"
+var version = "0.1.0"
 
 const defaultAddr = "127.0.0.1:4318"
 

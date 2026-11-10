@@ -1,6 +1,6 @@
 GO ?= go
 BINARY := bin/tokenledger
-VERSION ?= 0.1.0-dev
+VERSION ?= 0.1.0
 COVER_THRESHOLD ?= 75
 
 .PHONY: build test cover run clean
