@@ -50,6 +50,8 @@ flowchart LR
 4. Complete one turn in Claude Code — a per-turn row appears within seconds. Codex history backfills automatically from `~/.codex/sessions`.
 5. `tokenledger doctor` explains anything that is not working; `tokenledger export --csv --since 7d --out article.csv` produces the article dataset.
 
+**Model pricing:** the dashboard prices every turn at API list rates. Unknown models fall back to Claude Opus 5.5 list prices (`≈` prefix in the cost column, `cost_source=default_price` in exports). The **Model pricing** panel searches the public OpenRouter catalog (no key); picking a model caches its rates in SQLite under the vendor-less model name (so harness ids prefix-match), and the editable fields let you correct or set rates by hand — edits apply to future turns without a restart. `~/.tokenledger/pricing.json` overrides still win on the same model prefix.
+
 **macOS Gatekeeper:** the binaries are ad-hoc signed but not notarized (no paid Apple Developer certificate), so macOS blocks anything a browser downloaded and quarantined with *"tokenledger is damaged and can't be opened"*. The file is intact — verify the SHA-256, then clear the quarantine flag:
 
 ```bash

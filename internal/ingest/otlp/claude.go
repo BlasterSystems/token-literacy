@@ -138,12 +138,9 @@ func claudeSpanToCall(sp span, harnessVersion string, override pricing.Override)
 	raw := rawSpanMetadata(sp.Name, m)
 	call.Raw = &raw
 
-	if cost, ok := pricing.Cost(model, override, call.InputUncached, call.CacheRead, call.CacheWrite, call.Output); ok {
-		call.CostUSD = &cost
-		call.CostSource = "list_price"
-	} else {
-		call.CostSource = "none"
-	}
+	cost, source := pricing.CostSourced(model, override, call.InputUncached, call.CacheRead, call.CacheWrite, call.Output)
+	call.CostUSD = &cost
+	call.CostSource = source
 	return call, "", true
 }
 
@@ -300,12 +297,9 @@ func MetricCalls(body []byte, state MetricState, override pricing.Override) ([]l
 			AgentType:     strPtr("aggregate"),
 			Raw:           &rawStr,
 		}
-		if cost, ok := pricing.Cost(key.model, override, g.u, g.r, g.w, g.o); ok {
-			call.CostUSD = &cost
-			call.CostSource = "list_price"
-		} else {
-			call.CostSource = "none"
-		}
+		cost, source := pricing.CostSourced(key.model, override, g.u, g.r, g.w, g.o)
+		call.CostUSD = &cost
+		call.CostSource = source
 		calls = append(calls, call)
 	}
 	return calls, skipped, nil

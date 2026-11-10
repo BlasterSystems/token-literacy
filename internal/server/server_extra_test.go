@@ -17,7 +17,7 @@ func TestRootAndNotFound(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("root = %d", rec.Code)
 	}
-	if !strings.Contains(rec.Body.String(), "<!doctype html>") || !strings.Contains(rec.Body.String(), "token-literacy") {
+	if !strings.Contains(rec.Body.String(), "<!doctype html>") || !strings.Contains(rec.Body.String(), "TokL - Token Literacy") {
 		t.Fatalf("root body = %s", rec.Body)
 	}
 	rec = doRequest(t, handler, http.MethodGet, "/missing", nil, nil)

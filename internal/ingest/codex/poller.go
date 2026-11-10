@@ -37,8 +37,12 @@ type Poller struct {
 	Dir      string
 	Interval time.Duration // default 1s
 	Override pricing.Override
-	Logf     func(format string, args ...any)
-	Warnf    func(format string, args ...any)
+	// RatesFn, when set, supplies a fresh override per scan (DB-cached
+	// model rates) so rate changes apply without a restart. It layers
+	// under Override (config file), which still wins on equal keys.
+	RatesFn func() pricing.Override
+	Logf    func(format string, args ...any)
+	Warnf   func(format string, args ...any)
 }
 
 // ScanOnce walks the sessions directory once, ingesting new complete lines
@@ -153,7 +157,11 @@ func (p *Poller) ingestFile(path string) (int, []string, error) {
 		}
 	}
 
-	pr := &parser{override: p.Override, fileSalt: pathSalt(path)}
+	ov := p.Override
+	if p.RatesFn != nil {
+		ov = p.RatesFn()
+	}
+	pr := &parser{override: ov, fileSalt: pathSalt(path)}
 	if offset > 0 && state != "" {
 		// Restored session/model/cli_version/parent from the previous poll:
 		// without this, resumed windows lose attribution entirely.

@@ -181,6 +181,84 @@ func TestIngestMetricsFallback(t *testing.T) {
 	}
 }
 
+func TestRatesLifecycle(t *testing.T) {
+	handler, db := newTestHandler(t)
+
+	// PUT: upsert one rate (dashboard persisting an OpenRouter pick).
+	body := []byte(`{"model":"openai/gpt-6-luna","name":"OpenAI: GPT-6 Luna","input":1.5,"cache_read":0.15,"cache_write":0,"output":6,"source":"openrouter"}`)
+	rec := doRequest(t, handler, http.MethodPut, "/api/rates", body, map[string]string{"Content-Type": "application/json"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT status = %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// GET: listed with the default price info.
+	rec = doRequest(t, handler, http.MethodGet, "/api/rates", nil, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET status = %d", rec.Code)
+	}
+	var resp struct {
+		Rates []ledger.ModelRate `json:"rates"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Rates) != 1 || resp.Rates[0].Model != "openai/gpt-6-luna" || resp.Rates[0].Input != 1.5 {
+		t.Fatalf("rates = %+v", resp.Rates)
+	}
+
+	// PUT validation: missing model and negative rates are rejected.
+	rec = doRequest(t, handler, http.MethodPut, "/api/rates", []byte(`{"input":1}`), nil)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("missing model status = %d", rec.Code)
+	}
+	rec = doRequest(t, handler, http.MethodPut, "/api/rates", []byte(`{"model":"m","input":-1}`), nil)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("negative rate status = %d", rec.Code)
+	}
+
+	// Ingest picks up the stored rate without a restart: the unknown-model
+	// fixture is priced list_price while the rate exists.
+	fixtureBody := []byte(`{"resourceSpans":[{"scopeSpans":[{"spans":[
+		{"name":"claude_code.llm_request","startTimeUnixNano":"1000",
+		 "attributes":[{"key":"request_id","value":{"stringValue":"r"}},{"key":"input_tokens","value":{"intValue":"5"}},{"key":"output_tokens","value":{"intValue":"2"}},{"key":"model","value":{"stringValue":"openai/gpt-6-luna"}}]}
+	]}]}]}`)
+	rec = doRequest(t, handler, http.MethodPost, "/v1/traces", fixtureBody, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ingest status = %d: %s", rec.Code, rec.Body.String())
+	}
+	rows, err := db.Rows(ledger.RowsFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].CostSource != "list_price" {
+		t.Fatalf("cost source = %v / %s, want list_price", rows[0].CostUSD, rows[0].CostSource)
+	}
+
+	// DELETE: the rate is gone, so the same model falls back to default_price.
+	rec = doRequest(t, handler, http.MethodDelete, "/api/rates?model=openai/gpt-6-luna", nil, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("DELETE status = %d", rec.Code)
+	}
+	fixtureBody2 := []byte(`{"resourceSpans":[{"scopeSpans":[{"spans":[
+		{"name":"claude_code.llm_request","startTimeUnixNano":"1000",
+		 "attributes":[{"key":"request_id","value":{"stringValue":"r2"}},{"key":"input_tokens","value":{"intValue":"5"}},{"key":"output_tokens","value":{"intValue":"2"}},{"key":"model","value":{"stringValue":"openai/gpt-6-luna"}}]}
+	]}]}]}`)
+	rec = doRequest(t, handler, http.MethodPost, "/v1/traces", fixtureBody2, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ingest 2 status = %d", rec.Code)
+	}
+	rows, err = db.Rows(ledger.RowsFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("rows = %d", len(rows))
+	}
+	if rows[0].CostSource != "default_price" && rows[1].CostSource != "default_price" {
+		t.Fatalf("second ingest cost source = %s / %s, want default_price", rows[0].CostSource, rows[1].CostSource)
+	}
+}
+
 func TestLoopbackGuard(t *testing.T) {
 	handler, _ := newTestHandler(t)
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)

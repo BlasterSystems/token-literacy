@@ -19,7 +19,31 @@ func TestLookupPrefixAndDate(t *testing.T) {
 		}
 	}
 	if _, ok := Lookup("claude-unknown-9", nil); ok {
-		t.Error("unknown model priced")
+		t.Error("unknown model priced by table")
+	}
+}
+
+func TestLookupLongestPrefixWins(t *testing.T) {
+	// Two matching override prefixes: the longer one must win regardless of
+	// map iteration order.
+	ov := Override{
+		"gpt":       {Input: 1, Output: 2},
+		"gpt-6-luna": {Input: 7, Output: 8},
+	}
+	for range 20 {
+		p, ok := Lookup("gpt-6-luna-2026", ov)
+		if !ok || p.Input != 7 {
+			t.Fatalf("longest prefix lost: %+v ok=%v", p, ok)
+		}
+	}
+}
+
+func TestMergeLayers(t *testing.T) {
+	base := Override{"m": {Input: 1}, "shared": {Input: 1}}
+	top := Override{"shared": {Input: 9}}
+	merged := Merge(base, top)
+	if merged["shared"].Input != 9 || merged["m"].Input != 1 {
+		t.Fatalf("merge wrong: %+v", merged)
 	}
 }
 
@@ -50,25 +74,34 @@ func TestOverrideWins(t *testing.T) {
 	}
 }
 
-func TestCost(t *testing.T) {
+func TestCostSourced(t *testing.T) {
 	// Sonnet 4.5: in 3, read 0.3, write 3.75, out 15 per MTok.
-	cost, ok := Cost("claude-sonnet-4-5", nil, 707, 28032, 0, 11)
-	if !ok {
-		t.Fatal("no price")
+	cost, source := CostSourced("claude-sonnet-4-5", nil, 707, 28032, 0, 11)
+	if source != SourceListPrice {
+		t.Fatalf("source = %s, want list_price", source)
 	}
 	want := (707*3 + 28032*0.3 + 0 + 11*15) / 1e6
 	if cost != want {
 		t.Errorf("cost = %v, want %v", cost, want)
 	}
-	if _, ok := Cost("mystery", nil, 1, 0, 0, 1); ok {
-		t.Error("mystery model priced")
+	// Unknown models fall back to the opus-5.5 default rates.
+	cost, source = CostSourced("mystery", nil, 1_000_000, 0, 0, 0)
+	if source != SourceDefaultCost {
+		t.Fatalf("source = %s, want default_price", source)
+	}
+	if cost != DefaultPrice.Input {
+		t.Errorf("default cost = %v, want %v", cost, DefaultPrice.Input)
+	}
+	// The default is opus-5.5's real list price.
+	if DefaultPrice.Input != 4 || DefaultPrice.CacheRead != 0.2 || DefaultPrice.CacheWrite != 5 || DefaultPrice.Output != 20 {
+		t.Errorf("default price drifted: %+v", DefaultPrice)
 	}
 }
 
 func TestCacheWritePremium(t *testing.T) {
 	// Claude cache write is 1.25x input: 3.75 vs 3.0 for sonnet.
-	costWrite, _ := Cost("claude-sonnet-4-5", nil, 0, 0, 1_000_000, 0)
-	costInput, _ := Cost("claude-sonnet-4-5", nil, 1_000_000, 0, 0, 0)
+	costWrite, _ := CostSourced("claude-sonnet-4-5", nil, 0, 0, 1_000_000, 0)
+	costInput, _ := CostSourced("claude-sonnet-4-5", nil, 1_000_000, 0, 0, 0)
 	if costWrite != costInput*1.25 {
 		t.Errorf("cache write premium wrong: %v vs %v", costWrite, costInput)
 	}

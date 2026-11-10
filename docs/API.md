@@ -20,9 +20,14 @@ The collector serves everything on `127.0.0.1` only (ADR-0003). Requests from no
 | Route | Parameters | Response |
 |---|---|---|
 | `GET /health` | — | `{status, version, uptime_seconds, db, calls_total, calls_by_harness, last_claude_span_ms, last_codex_row_ms, claude_aggregate_only}` |
-| `GET /api/summary` | `since`, `harness`, `session` | `{calls, input_fresh, cache_read, cache_write, output, reasoning, prompt_total, total_tokens, cost_usd, costed_calls, cache_hit_rate, fresh_share, context_tax, cost_per_output_token}` |
+| `GET /api/summary` | `since`, `harness`, `session` | `{calls, input_fresh, cache_read, cache_write, output, reasoning, prompt_total, total_tokens, cost_usd, costed_calls, cache_hit_rate, fresh_share, context_tax, cost_per_output_token, cost_estimate_usd, unpriced_calls, unpriced_used_default}` |
 | `GET /api/rows` | `since`, `harness`, `session`, `limit`, `offset`, `order=asc\|desc` | array of call rows |
 | `GET /api/sessions` | `since`, `harness` | array of `{harness, session_id, first_seen, last_seen, turns, total_tokens}` |
+| `GET /api/rates` | — | `{rates: [{model, name, input, cache_read, cache_write, output, source, updated_at}], default: {model, price}}` — cached model rates in USD per million tokens (`source`: `openrouter` or `manual`) plus the default-price fallback info |
+| `PUT /api/rates` | JSON body | Upserts one rate `{model, name, input, cache_read, cache_write, output, source}`; `model` and non-negative rates are required; unknown `source` defaults to `manual` |
+| `DELETE /api/rates` | `model` | Removes one cached rate |
+
+`cost_usd` sums only rows stored with a price; `cost_estimate_usd` is the dashboard's live estimate for rows without one (`unpriced_calls`), priced at current rates — `unpriced_used_default` reports whether the Claude Opus 5.5 fallback applied. Exports keep the raw per-row values.
 
 `since` accepts epoch milliseconds, a relative duration (`7d`, `12h`), or RFC 3339.
 

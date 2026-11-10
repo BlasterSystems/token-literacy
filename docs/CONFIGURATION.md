@@ -54,7 +54,7 @@ Token counts still come from rollout files; this block only enables Codex's own 
 
 ## Pricing override (`~/.tokenledger/pricing.json`)
 
-Optional. Maps a model-id prefix to USD-per-million-token rates; overrides win over the embedded table; unknown models are stored with `cost_source=none`.
+Optional. Maps a model-id prefix to USD-per-million-token rates; overrides win over the embedded table; unknown models are priced at the Claude Opus 5.5 default (`cost_source=default_price`). Cached OpenRouter rates and manual edits live in the ledger's `model_rates` table and layer beneath this file.
 
 ```json
 {

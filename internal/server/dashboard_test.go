@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/csv"
 	"encoding/json"
+	"math"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -40,9 +41,10 @@ func TestDashboardRendersChartsAndTable(t *testing.T) {
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
-		"Total tokens", "Cache hit rate", "Fresh share", "Context tax",
-		"API-equiv. cost", "Cost / output token",
-		"<svg viewBox=", "<rect", "<polyline", "s-twenty",
+		"Tokens", "Cache hit rate", "Fresh share", "Context tax",
+		"API-equiv. cost", "Cost / output token", "Turns",
+		"TokL - Token Literacy", "A BlasterSystems product",
+		`id="bars"`, `id="rate"`, `"u":`, "s-twenty",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("dashboard missing %q", want)
@@ -162,37 +164,86 @@ func TestExportJSON(t *testing.T) {
 	}
 }
 
-func TestStackedBarsSVGShape(t *testing.T) {
+func TestChartRowsAscending(t *testing.T) {
 	rows := []ledger.Call{
-		{ID: "a", InputUncached: 10, CacheRead: 20, CacheWrite: 0, Output: 5, StartedAt: 100},
 		{ID: "b", InputUncached: 30, CacheRead: 40, CacheWrite: 10, Output: 15, StartedAt: 200},
+		{ID: "a", InputUncached: 10, CacheRead: 20, CacheWrite: 0, Output: 5, StartedAt: 100},
 	}
-	svg := stackedBarsSVG(rows)
-	if !strings.HasPrefix(svg, `<svg viewBox="0 0 `) {
-		t.Fatalf("svg = %s", svg[:60])
+	chart := chartRows(rows)
+	if len(chart) != 2 {
+		t.Fatalf("chart rows = %d", len(chart))
 	}
-	if strings.Count(svg, "<rect") != 7 { // 4+3 nonzero segments
-		t.Errorf("rects = %d, want 7", strings.Count(svg, "<rect"))
+	if chart[0].T != 100 || chart[1].T != 200 {
+		t.Fatalf("not ascending: %+v", chart)
 	}
-	if !strings.Contains(svg, "var(--c2)") {
-		t.Error("cache-read color missing")
+	if chart[1].U != 30 || chart[1].R != 40 || chart[1].W != 10 || chart[1].O != 15 {
+		t.Fatalf("token split wrong: %+v", chart[1])
 	}
-	empty := stackedBarsSVG(nil)
-	if !strings.Contains(empty, "no turns in range") {
-		t.Error("empty svg missing message")
+	// 40/(30+40+10) = 50%
+	if chart[1].Hit < 49.9 || chart[1].Hit > 50.1 {
+		t.Errorf("hit = %v, want 50", chart[1].Hit)
+	}
+	if got := chartRows(nil); len(got) != 0 {
+		t.Errorf("empty rows should yield no chart points")
 	}
 }
 
-func TestRateLineSVGShape(t *testing.T) {
-	rows := []ledger.Call{
-		{ID: "a", InputUncached: 10, CacheRead: 30, Output: 5, StartedAt: 100},
-		{ID: "b", InputUncached: 30, CacheRead: 10, Output: 15, StartedAt: 200},
+func TestDashboardEstimatesUnpricedTurns(t *testing.T) {
+	handler, db := newTestHandler(t)
+	// A row stored before default pricing existed: no cost, cost_source=none.
+	if _, err := db.InsertCall(ledger.Call{
+		ID: "u1", Harness: "codex", SessionID: "s1", Model: "mystery-model",
+		InputUncached: 50, CacheRead: 50, CacheWrite: 0, Output: 5,
+		PromptTotal: 100, TotalTokens: 105, StartedAt: 1000,
+		Source: "codex_rollout", CostSource: "none",
+	}); err != nil {
+		t.Fatal(err)
 	}
-	svg := rateLineSVG(rows)
-	if !strings.Contains(svg, "<polyline") {
-		t.Fatal("polyline missing")
+
+	rec := doRequest(t, handler, http.MethodGet, "/", nil, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("dashboard = %d", rec.Code)
 	}
-	if !strings.Contains(svg, "25%") || !strings.Contains(svg, "100%") {
-		t.Error("gridline labels missing")
+	body := rec.Body.String()
+	if !strings.Contains(body, "≈") {
+		t.Error("estimate marker missing from cost card")
+	}
+	if !strings.Contains(body, "turns unpriced") {
+		t.Error("estimate breakdown missing")
+	}
+
+	rec = doRequest(t, handler, http.MethodGet, "/api/summary", nil, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("summary = %d", rec.Code)
+	}
+	var sum struct {
+		CostEstimateUSD float64 `json:"cost_estimate_usd"`
+		UnpricedCalls   int64   `json:"unpriced_calls"`
+		UsedDefault     bool    `json:"unpriced_used_default"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &sum); err != nil {
+		t.Fatal(err)
+	}
+	if sum.UnpricedCalls != 1 || !sum.UsedDefault || sum.CostEstimateUSD <= 0 {
+		t.Fatalf("estimate = %+v", sum)
+	}
+	// (50*4 + 50*0.2 + 5*20)/1e6 = 0.00031 at the opus-5.5 default.
+	if math.Abs(sum.CostEstimateUSD-0.00031) > 1e-12 {
+		t.Errorf("estimate = %v, want 0.00031", sum.CostEstimateUSD)
+	}
+}
+
+func TestRatesOverrideManualWins(t *testing.T) {
+	rates := []ledger.ModelRate{
+		{Model: "gpt-6", Input: 1, Source: "openrouter"},
+		{Model: "gpt-6", Input: 9, Source: "manual"},
+		{Model: "gpt-6-luna", Input: 2, Source: "openrouter"},
+	}
+	ov := RatesOverride(rates)
+	if ov["gpt-6"].Input != 9 {
+		t.Fatalf("manual row lost: %+v", ov)
+	}
+	if ov["gpt-6-luna"].Input != 2 {
+		t.Fatalf("openrouter row lost: %+v", ov)
 	}
 }

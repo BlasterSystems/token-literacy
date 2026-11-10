@@ -15,7 +15,7 @@ import (
 )
 
 // schemaVersion is the current PRAGMA user_version of the schema.
-const schemaVersion = 2
+const schemaVersion = 3
 
 // Call is one normalized per-turn token row (docs/PLAN.md data contract).
 type Call struct {
@@ -35,7 +35,7 @@ type Call struct {
 	PromptTotal    int64    `json:"prompt_total"`
 	TotalTokens    int64    `json:"total_tokens"`
 	CostUSD        *float64 `json:"cost_usd"`
-	CostSource     string   `json:"cost_source"` // list_price, provider_reported, none
+	CostSource     string   `json:"cost_source"` // list_price, default_price, provider_reported, none
 	StartedAt      int64    `json:"started_at"`  // epoch ms
 	EndedAt        *int64   `json:"ended_at"`
 	DurationMs     *int64   `json:"duration_ms"`
@@ -149,6 +149,17 @@ CREATE TABLE IF NOT EXISTS ingest_cursor (
 	updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS model_rates (
+	model       TEXT PRIMARY KEY,
+	name        TEXT NOT NULL DEFAULT '',
+	input       REAL NOT NULL,
+	cache_read  REAL NOT NULL,
+	cache_write REAL NOT NULL,
+	output      REAL NOT NULL,
+	source      TEXT NOT NULL DEFAULT 'openrouter',
+	updated_at  INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS meta (
 	key   TEXT PRIMARY KEY,
 	value TEXT NOT NULL
@@ -189,13 +200,40 @@ func (d *DB) migrate() error {
 		if _, err := d.db.Exec(`ALTER TABLE ingest_cursor ADD COLUMN state TEXT NOT NULL DEFAULT ''`); err != nil {
 			return fmt.Errorf("migrate v1->v2: %w", err)
 		}
-		if _, err := d.db.Exec(fmt.Sprintf("PRAGMA user_version=%d", schemaVersion)); err != nil {
-			return fmt.Errorf("stamp schema version: %w", err)
+		if err := d.migrateV3(); err != nil {
+			return err
+		}
+		return nil
+	case version == 2:
+		// v3: model_rates caches per-model list prices (OpenRouter catalog
+		// snapshots and manual overrides) used for API-equivalent costing.
+		if err := d.migrateV3(); err != nil {
+			return err
 		}
 		return nil
 	default:
 		return fmt.Errorf("ledger schema version %d is newer than supported version %d", version, schemaVersion)
 	}
+}
+
+// migrateV3 creates the model_rates table and stamps the schema version.
+func (d *DB) migrateV3() error {
+	if _, err := d.db.Exec(`CREATE TABLE IF NOT EXISTS model_rates (
+		model       TEXT PRIMARY KEY,
+		name        TEXT NOT NULL DEFAULT '',
+		input       REAL NOT NULL,
+		cache_read  REAL NOT NULL,
+		cache_write REAL NOT NULL,
+		output      REAL NOT NULL,
+		source      TEXT NOT NULL DEFAULT 'openrouter',
+		updated_at  INTEGER NOT NULL
+	)`); err != nil {
+		return fmt.Errorf("migrate to v3: %w", err)
+	}
+	if _, err := d.db.Exec(fmt.Sprintf("PRAGMA user_version=%d", schemaVersion)); err != nil {
+		return fmt.Errorf("stamp schema version: %w", err)
+	}
+	return nil
 }
 
 // Close closes the database.

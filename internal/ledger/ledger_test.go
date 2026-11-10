@@ -217,3 +217,82 @@ func TestIntegrityAndCounts(t *testing.T) {
 		t.Fatal("last source time should be set")
 	}
 }
+
+func TestMigrateV2ToV3(t *testing.T) {
+	// Hand-build a v2 database (v1 tables + the ingest_cursor state column,
+	// no model_rates) and confirm Open migrates it to v3.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ledger.db")
+	raw, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer raw.Close()
+	_, err = raw.Exec(`CREATE TABLE calls (id TEXT PRIMARY KEY, harness TEXT NOT NULL, session_id TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS ingest_cursor (source TEXT PRIMARY KEY, inode INTEGER, offset INTEGER NOT NULL DEFAULT 0, state TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+PRAGMA user_version=2;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw.Close()
+
+	db, err := Open(path)
+	if err != nil {
+		t.Fatalf("open v2 db: %v", err)
+	}
+	defer db.Close()
+	if err := db.UpsertModelRate(ModelRate{Model: "gpt-6-luna", Input: 1.5, CacheRead: 0.15, Output: 6, Source: "openrouter", UpdatedAtMS: 1}); err != nil {
+		t.Fatalf("model_rates missing after migration: %v", err)
+	}
+	rates, err := db.ModelRates()
+	if err != nil || len(rates) != 1 || rates[0].Model != "gpt-6-luna" {
+		t.Fatalf("rates after migration = %+v, %v", rates, err)
+	}
+}
+
+func TestUnpricedGroups(t *testing.T) {
+	db := openTest(t)
+	now := time.Now().UnixMilli()
+	mk := func(id, model string, cost *float64, started int64) Call {
+		c := validCall()
+		c.ID, c.RequestID, c.Model, c.CostUSD, c.StartedAt = "codex:"+id, id, model, cost, started
+		return c
+	}
+	// Two unpriced models and one priced row that must be excluded.
+	if _, err := db.InsertCall(mk("r1", "m1", nil, now)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.InsertCall(mk("r2", "m2", nil, now)); err != nil {
+		t.Fatal(err)
+	}
+	priced := 1.23
+	if _, err := db.InsertCall(mk("r3", "priced-model", &priced, now)); err != nil {
+		t.Fatal(err)
+	}
+
+	groups, err := db.UnpricedGroups(RowsFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 2 {
+		t.Fatalf("groups = %+v", groups)
+	}
+	// Ordered by model: m1 before m2; the priced row is excluded.
+	if groups[0].Model != "m1" || groups[1].Model != "m2" {
+		t.Fatalf("models = %q %q", groups[0].Model, groups[1].Model)
+	}
+	for _, g := range groups {
+		if g.Calls != 1 || g.InputFresh != 707 || g.CacheRead != 28032 || g.Output != 11 {
+			t.Fatalf("group totals wrong: %+v", g)
+		}
+	}
+
+	// Harness and since filters apply.
+	if g, err := db.UnpricedGroups(RowsFilter{Harness: "claude-code"}); err != nil || len(g) != 0 {
+		t.Fatalf("harness filter = %+v %v", g, err)
+	}
+	if g, err := db.UnpricedGroups(RowsFilter{SinceMS: now + 60000}); err != nil || len(g) != 0 {
+		t.Fatalf("since filter = %+v %v", g, err)
+	}
+}

@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TokL - Token Literacy</title>
+<style>
+/* ===== BlasterSystems DS v1.1 tokens (verbatim, identity v0.2) ===== */
+:root{
+  --paper:oklch(0.965 0.004 250); --paper-2:oklch(0.935 0.005 250); --card:oklch(0.99 0.002 250);
+  --ink:oklch(0.22 0.015 255); --ink-2:oklch(0.40 0.014 255); --ink-3:oklch(0.51 0.012 255);
+  --rule:oklch(0.87 0.006 255); --rule-2:oklch(0.78 0.008 255);
+  --thread:oklch(0.60 0.19 32); --thread-ink:oklch(0.52 0.18 31); --thread-wash:oklch(0.60 0.19 32 / 0.12);
+  --grid:oklch(0.22 0.015 255 / 0.05); --band:oklch(0.22 0.015 255 / 0.10);
+  --surface-page:var(--paper); --surface-sunken:var(--paper-2); --surface-card:var(--card); --surface-tooltip:var(--paper-2);
+  --text-1:var(--ink); --text-2:var(--ink-2); --text-3:var(--ink-3);
+  --border-1:var(--rule); --border-2:var(--rule-2); --border-strong:var(--ink);
+  --action-bg:var(--ink); --action-bg-hover:var(--ink-2); --action-fg:var(--paper);
+  --accent:var(--thread); --accent-text:var(--thread-ink); --accent-wash:var(--thread-wash);
+  color-scheme:light;
+}
+[data-theme="dark"]{
+  --paper:oklch(0.18 0.012 255); --paper-2:oklch(0.21 0.013 255); --card:oklch(0.225 0.014 255);
+  --ink:oklch(0.95 0.004 250); --ink-2:oklch(0.80 0.008 250); --ink-3:oklch(0.66 0.010 250);
+  --rule:oklch(0.31 0.012 255); --rule-2:oklch(0.40 0.014 255);
+  --thread:oklch(0.68 0.17 35); --thread-ink:oklch(0.74 0.15 38); --thread-wash:oklch(0.68 0.17 35 / 0.16);
+  --grid:oklch(0.95 0.004 250 / 0.05); --band:oklch(0.95 0.004 250 / 0.10);
+  color-scheme:dark;
+}
+:root{
+  --font-sans:'Fira Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'DM Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --fs-endorse:10.5px; --fs-label:11.5px; --fs-data:12.5px; --fs-small:13px; --fs-ui:14px;
+  --fs-body:16px; --fs-stat:17px; --fs-wordmark:17px; --fs-h3:22px; --fs-figure:34px; --fs-figure-sm:32px;
+  --lh-ui:1.4; --lh-body:1.5; --tracking-label:0.08em; --tracking-mono:0.06em; --tracking-heading:-0.02em;
+  --space-2:8px; --space-3:12px; --space-4:16px; --space-5:24px; --space-6:32px;
+  --radius-control:2px; --radius-panel:4px; --panel-pad:16px 18px 18px;
+  --dur-press:150ms; --dur-ui:200ms; --ease-standard:cubic-bezier(.4,0,.2,1);
+}
+@font-face{font-family:'Fira Sans';font-weight:300;font-style:normal;src:url(fonts/fira-sans-300-latin.woff2) format('woff2')}
+@font-face{font-family:'Fira Sans';font-weight:400;font-style:normal;src:url(fonts/fira-sans-400-latin.woff2) format('woff2')}
+@font-face{font-family:'Fira Sans';font-weight:500;font-style:normal;src:url(fonts/fira-sans-500-latin.woff2) format('woff2')}
+@font-face{font-family:'DM Mono';font-weight:400;font-style:normal;src:url(fonts/dm-mono-400-latin.woff2) format('woff2')}
+@font-face{font-family:'DM Mono';font-weight:500;font-style:normal;src:url(fonts/dm-mono-500-latin.woff2) format('woff2')}
+
+/* ===== base.css ===== */
+html,body{margin:0;background:var(--paper)}
+body{color:var(--ink);font-family:var(--font-sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+*,*::before,*::after{box-sizing:border-box}
+button{font:inherit;color:inherit}
+::selection{background:var(--thread-wash)}
+:focus-visible{outline:2px solid var(--thread);outline-offset:3px}
+.bs-label{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.bs-num{font-variant-numeric:tabular-nums}
+.bs-figure{font-size:var(--fs-figure);font-weight:400;letter-spacing:-0.02em;line-height:1.05;font-variant-numeric:tabular-nums}
+.bs-sub{font-size:14px;line-height:1.45;color:var(--ink-2);text-wrap:pretty}
+.bs-note{margin:0;font-size:13px;line-height:1.45;color:var(--ink-3)}
+
+/* ===== display.css ===== */
+.bs-panel{position:relative;display:flex;flex-direction:column;gap:12px;min-width:0;padding:var(--panel-pad);background:var(--card);border:1px solid var(--rule);border-radius:var(--radius-panel)}
+.bs-panel__head{display:flex;flex-wrap:wrap;row-gap:8px;align-items:center;justify-content:space-between;gap:8px;min-height:24px}
+.bs-panel__aside{font-family:var(--font-mono);font-size:12.5px;color:var(--ink-2)}
+.bs-glyph{flex:none;display:inline-block}
+.bs-glyph--recorded{width:8px;height:8px;background:currentColor}
+.bs-chip{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;padding:5px 9px;border:1px solid var(--rule-2);border-radius:2px;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;line-height:1.3;color:var(--ink)}
+.bs-chip--held{border-color:var(--thread);background:var(--thread-wash);color:var(--thread-ink)}
+.bs-chip--held .bs-glyph{color:var(--thread)}
+.bs-chip--stage{color:var(--ink-2)}
+.bs-mark{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.bs-mark .bs-glyph--recorded{width:7px;height:7px}
+.bs-info{position:relative;flex:none;width:28px;height:28px;display:grid;place-items:center;margin:-6px -8px -6px 0;padding:0;border:0;border-radius:2px;background:transparent;color:var(--ink-3);cursor:help}
+.bs-info:hover{color:var(--ink)}
+.bs-tip{position:absolute;z-index:10;top:34px;right:-8px;width:280px;display:none;flex-direction:column;gap:10px;padding:14px 16px;background:var(--paper-2);border:1px solid var(--rule-2);border-radius:4px;animation:bs-rise 200ms cubic-bezier(.22,.61,.36,1)}
+.bs-info:hover .bs-tip,.bs-info:focus-within .bs-tip{display:flex}
+.bs-tip__text{font-size:13.5px;line-height:1.45;color:var(--ink-2);text-wrap:pretty}
+.bs-calc{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 0;font-family:var(--font-mono);font-size:12px;line-height:1.4;font-variant-numeric:tabular-nums}
+.bs-calc>span:nth-child(odd){color:var(--ink-3)}
+.bs-calc>span:nth-child(even){padding-left:12px;text-align:right}
+.bs-calc>span.bs-calc__total{padding-top:7px;border-top:1px solid var(--rule-2);color:var(--ink)}
+
+/* ===== forms.css (ledger fields) ===== */
+.bs-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.bs-field__label{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.bs-field__box{display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid var(--rule-2);transition:border-color 150ms}
+.bs-field__box:hover{border-bottom-color:var(--ink-2)}
+.bs-field__box:focus-within{border-bottom:1.5px solid var(--thread);padding-bottom:7.5px}
+.bs-field__input{flex:1;min-width:0;padding:0;border:0;background:transparent;color:var(--ink);font:400 17px/1.3 var(--font-sans);outline:none;appearance:none}
+.bs-field__input::placeholder{color:var(--ink-3)}
+.bs-field--mono .bs-field__input{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.bs-field__hint{display:flex;align-items:center;gap:8px;font-size:13px;line-height:1.4;color:var(--ink-2)}
+.bs-field__chev{flex:none;align-self:center;color:var(--ink-3)}
+
+/* ===== actions.css ===== */
+.bs-btn{display:inline-flex;align-items:center;justify-content:flex-start;gap:10px;min-height:44px;padding:0 18px;border:0;border-radius:2px;font:500 15px/1.2 var(--font-sans);text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color 150ms,box-shadow 150ms,color 150ms}
+.bs-btn--primary{background:var(--ink);color:var(--paper)}
+.bs-btn--primary:hover{background:var(--ink-2);color:var(--paper)}
+.bs-btn--sm{min-height:36px;padding:0 14px;font-size:14px}
+.bs-link{display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:none;font:500 14px/1.3 var(--font-sans);color:var(--ink-2);text-decoration:none;cursor:pointer}
+.bs-link:hover{color:var(--thread-ink)}
+.bs-theme{flex:none;width:36px;height:36px;display:grid;place-items:center;padding:0;border:1px solid var(--rule-2);border-radius:2px;background:transparent;color:var(--ink);cursor:pointer}
+.bs-theme:hover{border-color:var(--ink)}
+.bs-theme>span{width:13px;height:13px;border:1.5px solid currentColor;border-radius:50%;background:linear-gradient(90deg,currentColor 50%,transparent 50%)}
+
+/* ===== charts.css ===== */
+.bs-chart{display:flex;flex-direction:column;gap:8px;min-width:0}
+.bs-chart__plot{position:relative;margin:6px 0 0 44px}
+.bs-chart__grid{position:absolute;left:0;right:0;border-top:1px solid var(--rule)}
+.bs-chart__y{position:absolute;left:-44px;width:36px;transform:translateY(-50%);text-align:right;font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+.bs-chart__x{position:relative;height:14px;margin-left:44px;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.bs-chart__x>span{position:absolute;top:0}
+.bs-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.bs-legend>span{display:inline-flex;align-items:center;gap:7px}
+.sw{display:inline-block;width:9px;height:9px}
+.sw--u{background:var(--ink-2)} .sw--r{background:var(--ink)} .sw--w{background:var(--rule-2)}
+.sw--o{background:transparent;border:1.5px solid var(--thread)}
+
+/* ===== brand.css (lockup, canonical mark ratios 1 : 1.09 : 1) ===== */
+.bs-lockup{display:inline-flex;align-items:flex-start;gap:12px;min-width:0;color:var(--ink);vertical-align:middle}
+.bs-lockup__text{display:flex;flex-direction:column;gap:8px;min-width:0}
+.bs-lockup__name{font-weight:600;letter-spacing:-0.015em;line-height:1;font-size:var(--fs-wordmark)}
+.bs-lockup__endorse{white-space:nowrap;font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;line-height:1;color:color-mix(in oklch,currentColor 62%,transparent)}
+.bs-lockup__mark{position:relative;display:inline-block;flex:none;width:30px;height:10px}
+.bs-lockup__mark::before{content:"";position:absolute;left:0;top:0;width:10px;height:10px;border:1.5px solid currentColor;border-radius:50%}
+.bs-lockup__mark::after{content:"";position:absolute;right:0;top:0;width:10px;height:10px;background:currentColor}
+.bs-lockup__mark i{position:absolute;left:10px;right:10px;top:4.25px;height:1.5px;background:var(--thread)}
+
+/* ===== mockup layout ===== */
+.wrap{max-width:1360px;margin:0 auto;padding:24px 32px 48px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:8px 0 20px}
+.wordmark{font-size:var(--fs-wordmark);font-weight:300;letter-spacing:-0.015em;margin:0}
+.subline{margin:2px 0 0;color:var(--ink-3);font-size:13px}
+.topright{display:flex;align-items:center;gap:16px}
+.one-liner{font-size:13px;line-height:1.45;color:var(--ink-3);max-width:330px;text-align:right}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+@media (max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}}
+.statcard .bs-figure{margin-top:2px}
+.statcard .bs-sub{margin-top:2px}
+.stat-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media (max-width:1100px){.grid2{grid-template-columns:1fr}}
+.filters{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-end;margin:0 0 28px}
+.filters .bs-field{width:180px}
+.filters .bs-link{margin-left:auto}
+table.turns{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:12px;font-variant-numeric:tabular-nums}
+table.turns th{text-align:left;font-weight:400;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);border-bottom:1px solid var(--rule-2);padding:6px 8px 6px 0}
+table.turns td{border-bottom:1px solid var(--rule);padding:7px 8px 7px 0;white-space:nowrap}
+table.turns td.num{text-align:right}
+table.turns tr:hover td{background:var(--paper-2)}
+.results{display:flex;flex-direction:column;margin-top:4px}
+.results .bs-row-btn{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:baseline;width:100%;padding:8px 2px;border:0;border-top:1px solid var(--rule);background:transparent;text-align:left;cursor:pointer}
+.results .bs-row-btn:hover{background:var(--paper-2)}
+.results .bs-row-btn .id{font-family:var(--font-mono);font-size:12.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.results .bs-row-btn .nm{font-size:12px;color:var(--ink-3);white-space:nowrap}
+footer.foot{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:center;margin-top:24px;padding-top:16px;border-top:1px solid var(--rule)}
+.mono-sm{font-family:var(--font-mono);font-size:12px;color:var(--ink-3)}
+@keyframes bs-rise{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div>
+    <span class="bs-lockup">
+      <span style="margin-top:4px;display:inline-flex"><span class="bs-lockup__mark"><i></i></span></span>
+      <span class="bs-lockup__text">
+        <span class="bs-lockup__name">TokL - Token Literacy</span>
+        <span class="bs-lockup__endorse">A BlasterSystems product</span>
+      </span>
+    </span>
+  </div>
+  <div class="topright">
+    <span class="one-liner">fresh vs cached input, output, and API-equivalent cost</span>
+    <button class="bs-btn bs-btn--primary bs-btn--sm" id="export-csv">Export CSV ↓</button>
+    <button class="bs-theme" id="theme-toggle" title="Toggle light/dark" aria-label="Toggle theme"><span></span></button>
+  </div>
+</header>
+
+<!-- ===== StatCards (contract: label + InfoTip + big tabular figure + sub + basis mark) ===== -->
+<div class="stats" id="stats">
+  <div class="bs-panel statcard">
+    <div class="stat-head"><span class="bs-label">Tokens</span><span class="bs-mark"><span class="bs-glyph bs-glyph--recorded"></span>Recorded · ledger</span></div>
+    <div class="bs-figure bs-num" id="s-total">—</div>
+    <div class="bs-sub" id="s-total-sub"></div>
+  </div>
+  <div class="bs-panel statcard">
+    <div class="stat-head">
+      <span class="bs-label">Cache hit rate</span>
+      <button class="bs-info" aria-label="How this is computed">?
+        <span class="bs-tip">
+          <span class="bs-tip__text">Share of prompt tokens served from cache, per turn and in aggregate.</span>
+          <span class="bs-calc">
+            <span>R</span><span id="tip-r">—</span>
+            <span>U + R + W</span><span id="tip-den">—</span>
+            <span class="bs-calc__total">Hit rate</span><span class="bs-calc__total" id="tip-hit">—</span>
+          </span>
+        </span>
+      </button>
+    </div>
+    <div class="bs-figure bs-num" id="s-hit">—</div>
+    <div class="bs-sub">R ÷ (U+R+W) across 20 turns</div>
+  </div>
+  <div class="bs-panel statcard">
+    <div class="stat-head"><span class="bs-label">Fresh share</span></div>
+    <div class="bs-figure bs-num" id="s-fresh">—</div>
+    <div class="bs-sub">U ÷ (U+R+W) — what you paid full price for</div>
+  </div>
+  <div class="bs-panel statcard">
+    <div class="stat-head"><span class="bs-label">Context tax</span></div>
+    <div class="bs-figure bs-num" id="s-tax">—</div>
+    <div class="bs-sub">prompt tokens pushed per output token</div>
+  </div>
+  <div class="bs-panel statcard">
+    <div class="stat-head"><span class="bs-label">API-equiv. cost</span></div>
+    <div class="bs-figure bs-num" id="s-cost">—</div>
+    <div class="bs-sub">at Claude Sonnet 4.5 rates (OpenRouter) · subscription billing</div>
+  </div>
+  <div class="bs-panel statcard">
+    <div class="stat-head"><span class="bs-label">Cost / output token</span></div>
+    <div class="bs-figure bs-num" id="s-cpo">—</div>
+    <div class="bs-sub">API-equivalent ÷ O</div>
+  </div>
+  <div class="bs-panel statcard">
+    <div class="stat-head"><span class="bs-label">Turns</span></div>
+    <div class="bs-figure bs-num" id="s-turns">—</div>
+    <div class="bs-sub" id="s-turns-sub"></div>
+  </div>
+</div>
+
+<!-- ===== Filters as ledger fields ===== -->
+<form class="filters" onsubmit="return false">
+  <div class="bs-field"><span class="bs-field__label">Harness</span>
+    <div class="bs-field__box"><select class="bs-field__input" aria-label="Harness"><option>all</option><option>codex</option><option>claude</option></select>
+    <svg class="bs-field__chev" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg></div></div>
+  <div class="bs-field"><span class="bs-field__label">Session</span>
+    <div class="bs-field__box"><select class="bs-field__input" aria-label="Session"><option>all</option><option>01a1a72a…7244</option><option>0b7f1c2e…9910</option></select>
+    <svg class="bs-field__chev" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg></div></div>
+  <div class="bs-field"><span class="bs-field__label">Since</span>
+    <div class="bs-field__box"><select class="bs-field__input" aria-label="Since"><option>all time</option><option>24h</option><option>7d</option><option>30d</option></select>
+    <svg class="bs-field__chev" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg></div></div>
+  <button class="bs-link" type="reset">Reset</button>
+</form>
+
+<!-- ===== Charts ===== -->
+<div class="grid2">
+  <div class="bs-panel">
+    <div class="bs-panel__head"><span class="bs-label">Per-turn tokens</span><span class="bs-panel__aside">oldest → newest</span></div>
+    <div class="bs-chart">
+      <div style="display:flex;align-items:stretch">
+        <div style="position:relative;width:44px;flex:none;margin-top:6px" id="bars-y"></div>
+        <div id="bars" style="height:190px;flex:1;min-width:0;overflow-x:auto"></div>
+      </div>
+      <div class="bs-chart__x"><span>Nov 4</span><span style="left:100%;transform:translateX(-100%)">Nov 10</span></div>
+      <div class="bs-legend"><span><span class="sw sw--u"></span>U fresh</span><span><span class="sw sw--r"></span>R cache read</span><span><span class="sw sw--w"></span>W cache write</span><span><span class="sw sw--o"></span>O output</span></div>
+    </div>
+  </div>
+  <div class="bs-panel">
+    <div class="bs-panel__head"><span class="bs-label">Cache hit rate</span><span class="bs-panel__aside">R ÷ (U+R+W)</span></div>
+    <div class="bs-chart">
+      <div id="rate" style="height:190px"></div>
+      <div class="bs-chart__x" style="margin-left:0"><span>Nov 4</span><span style="left:100%;transform:translateX(-100%)">Nov 10</span></div>
+      <div class="bs-legend"><span><span class="sw sw--r"></span>per turn</span><span><span class="sw" style="border-top:1.5px dashed var(--ink-3);height:0;width:12px"></span>0%</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Model pricing (OpenRouter) ===== -->
+<div class="bs-panel" style="margin-bottom:16px">
+  <div class="bs-panel__head">
+    <span class="bs-label">Model pricing</span>
+    <span style="display:inline-flex;align-items:center;gap:10px">
+      <span class="bs-chip bs-chip--stage"><span class="bs-glyph bs-glyph--recorded"></span>Live</span>
+      <span class="bs-panel__aside">openrouter.ai · public catalog · no key</span>
+    </span>
+  </div>
+  <div class="bs-field bs-field--mono">
+    <span class="bs-field__label">Search a model</span>
+    <div class="bs-field__box">
+      <span class="bs-field__affix" style="font-family:var(--font-mono);font-size:14px;color:var(--ink-3)">$/1M</span>
+      <input class="bs-field__input" id="model-search" type="search" placeholder="e.g. claude sonnet 4.5" autocomplete="off" spellcheck="false">
+    </div>
+    <span class="bs-field__hint">Prices populate the ledger's API-equivalent rates — same U / R / W / O split.</span>
+  </div>
+  <div class="results" id="model-results"></div>
+  <div id="price-block">
+    <div class="bs-calc" id="price-calc"></div>
+    <div id="tier-note"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+      <span class="bs-mark"><span class="bs-glyph bs-glyph--recorded"></span><span id="price-source">Recorded · openrouter.ai/api/v1/models</span></span>
+      <span class="mono-sm" id="price-fetched"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Turns ===== -->
+<div class="bs-panel">
+  <div class="bs-panel__head"><span class="bs-label">Turns</span><span class="bs-panel__aside" id="turns-aside"></span></div>
+  <div style="overflow-x:auto">
+    <table class="turns">
+      <thead><tr><th>time</th><th>harness</th><th>model</th><th style="text-align:right">U</th><th style="text-align:right">R</th><th style="text-align:right">W</th><th style="text-align:right">O</th><th style="text-align:right">hit %</th><th style="text-align:right">cost</th><th>source</th></tr></thead>
+      <tbody id="turns-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<footer class="foot">
+  <span class="mono-sm">local only · v0.2.0-mock</span>
+  <span class="mono-sm">SQLite · ~/.tokenledger/ledger.db</span>
+  <span class="mono-sm">no telemetry · no prompt content</span>
+  <span style="margin-left:auto;display:inline-flex;gap:16px">
+    <button class="bs-link">export.json</button>
+    <button class="bs-link">doctor</button>
+  </span>
+</footer>
+
+</div>
+<script>
+/* ===== theme ===== */
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  const h = document.documentElement;
+  h.dataset.theme = h.dataset.theme === 'dark' ? 'light' : 'dark';
+});
+
+/* ===== real ledger data (exported from ~/.tokenledger, 2026-11-10) ===== */
+const SERIES=[{"t":1793805924397,"h":"codex","m":"gpt-6-luna","u":29765,"r":0,"w":0,"o":153,"hit":0.0,"cost":null},{"t":1793824342412,"h":"codex","m":"gpt-6-luna","u":38372,"r":0,"w":0,"o":129,"hit":0.0,"cost":null},{"t":1793978846255,"h":"codex","m":"gpt-6-luna","u":8040,"r":12160,"w":0,"o":181,"hit":60.2,"cost":null},{"t":1793978985991,"h":"codex","m":"gpt-6-luna","u":1055,"r":19968,"w":0,"o":129,"hit":95.0,"cost":null},{"t":1794073466883,"h":"codex","m":"gpt-6-luna","u":9063,"r":12160,"w":0,"o":137,"hit":57.3,"cost":null},{"t":1794073470398,"h":"codex","m":"gpt-6-luna","u":4138,"r":20864,"w":0,"o":88,"hit":83.4,"cost":null},{"t":1794073472664,"h":"codex","m":"gpt-6-luna","u":3119,"r":24832,"w":0,"o":80,"hit":88.8,"cost":null},{"t":1794073493635,"h":"codex","m":"gpt-6-luna","u":482,"r":33664,"w":0,"o":67,"hit":98.6,"cost":null},{"t":1794073549216,"h":"codex","m":"gpt-6-luna","u":1160,"r":33920,"w":0,"o":977,"hit":94.1,"cost":null},{"t":1794073658798,"h":"codex","m":"gpt-6-luna","u":1392,"r":34688,"w":0,"o":54,"hit":95.5,"cost":null},{"t":1794073726131,"h":"codex","m":"gpt-6-luna","u":1033,"r":35968,"w":0,"o":650,"hit":96.8,"cost":null},{"t":1794073827167,"h":"codex","m":"gpt-6-luna","u":938,"r":36736,"w":0,"o":54,"hit":97.3,"cost":null},{"t":1794073904374,"h":"codex","m":"gpt-6-luna","u":122,"r":37632,"w":0,"o":137,"hit":99.7,"cost":null},{"t":1794073957415,"h":"codex","m":"gpt-6-luna","u":612,"r":37632,"w":0,"o":127,"hit":98.4,"cost":null},{"t":1794074020268,"h":"codex","m":"gpt-6-luna","u":322,"r":38144,"w":0,"o":343,"hit":99.2,"cost":null},{"t":1794074106793,"h":"codex","m":"gpt-6-luna","u":432,"r":38400,"w":0,"o":151,"hit":98.7,"cost":null},{"t":1794125700000,"h":"codex","m":"gpt-6-luna","u":9060,"r":12160,"w":0,"o":728,"hit":57.3,"cost":null},{"t":1794126000000,"h":"codex","m":"gpt-6-luna","u":1033,"r":35968,"w":0,"o":650,"hit":96.8,"cost":null},{"t":1794126300000,"h":"codex","m":"gpt-6-luna","u":4138,"r":20864,"w":0,"o":88,"hit":83.4,"cost":null},{"t":1794126600000,"h":"codex","m":"gpt-6-luna","u":611,"r":27776,"w":0,"o":1126,"hit":87.4,"cost":null}];
+const fmt=n=>n.toLocaleString('en-US');
+const tot=SERIES.reduce((a,s)=>({u:a.u+s.u,r:a.r+s.r,w:a.w+s.w,o:a.o+s.o}),{u:0,r:0,w:0,o:0});
+const den=tot.u+tot.r+tot.w;
+document.getElementById('s-total').textContent=fmt(tot.u+tot.r+tot.w+tot.o);
+document.getElementById('s-total-sub').textContent=`U ${fmt(tot.u)} · R ${fmt(tot.r)} · W ${fmt(tot.w)} · O ${fmt(tot.o)}`;
+document.getElementById('s-hit').textContent=(tot.r/den*100).toFixed(1)+'%';
+document.getElementById('tip-r').textContent=fmt(tot.r);
+document.getElementById('tip-den').textContent=fmt(den);
+document.getElementById('tip-hit').textContent=(tot.r/den*100).toFixed(1)+'%';
+document.getElementById('s-fresh').textContent=(tot.u/den*100).toFixed(1)+'%';
+document.getElementById('s-tax').textContent=((den/tot.o)).toFixed(1)+'×';
+const RATE={fresh:3.0/1e6,read:0.3/1e6,write:3.75/1e6,out:15.0/1e6};
+const cost=tot.u*RATE.fresh+tot.r*RATE.read+tot.w*RATE.write+tot.o*RATE.out;
+document.getElementById('s-cost').textContent='$'+cost.toFixed(2);
+document.getElementById('s-cpo').textContent='$'+(cost/tot.o).toFixed(7).replace(/^0/,'');
+document.getElementById('s-turns').textContent=SERIES.length;
+const sessions=new Set(SERIES.map(s=>s.m));
+document.getElementById('s-turns-sub').textContent='gpt-6-luna · subscription';
+
+/* ===== charts ===== */
+const BW=22,GAP=10,H=170,PADT=10,maxTot=Math.max(...SERIES.map(s=>s.u+s.r+s.w+s.o));
+function barsSVG(){
+  const box=document.getElementById('bars');
+  const W=Math.max(box.clientWidth||320,320);
+  const n=SERIES.length,slot=W/n;
+  const bw=Math.max(4,Math.min(22,Math.floor(slot*0.66)));
+  const xAt=i=>i*slot+(slot-bw)/2;
+  let out='';
+  [0,.25,.5,.75,1].forEach(f=>{const y=PADT+(H-PADT)*f;out+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="${f===0?'var(--rule-2)':'var(--rule)'}" stroke-width="1"/>`;});
+  SERIES.forEach((s,i)=>{let y=H;const parts=[['u',s.u,'var(--ink-2)'],['r',s.r,'var(--ink)'],['w',s.w,'var(--rule-2)']];
+    parts.forEach(([k,v,c])=>{if(!v)return;const h=(H-PADT)*v/maxTot;y-=h;out+=`<rect x="${xAt(i)}" y="${y}" width="${bw}" height="${h}" fill="${c}"><title>U ${fmt(s.u)} · R ${fmt(s.r)} · W ${fmt(s.w)} · O ${fmt(s.o)}</title></rect>`;});
+    if(s.o){const h=(H-PADT)*s.o/maxTot;y-=h;out+=`<rect x="${xAt(i)}" y="${y}" width="${bw}" height="${Math.max(h,2)}" fill="none" stroke="var(--thread)" stroke-width="1.5"><title>O ${fmt(s.o)}</title></rect>`;}});
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block">${out}</svg>`;
+}
+document.getElementById('bars').innerHTML=barsSVG();
+document.getElementById('bars-y').innerHTML=[0,.5,1].map(f=>`<span class="bs-chart__y" style="left:0;width:38px;top:${PADT+(H-PADT)*f}px">${fmt(Math.round(maxTot*(1-f)))}</span>`).join('');
+function rateSVG(){
+  const box=document.getElementById('rate');
+  const W=Math.max(box.clientWidth||320,320);
+  const L=8,R=44,inner=W-L-R;
+  const xAt=i=>L+inner*(SERIES.length===1?0:i/(SERIES.length-1));
+  let out='';
+  const yFor=v=>H-(H-PADT)*(v/100); // 0% at bottom, 100% at top
+  [0,.25,.5,.75,1].forEach(f=>{const y=yFor(f*100);const zero=f===0;out+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="${zero?'var(--ink-3)':'var(--rule)'}" stroke-width="1"${zero?' stroke-dasharray="4 3"':''}/><text x="${W-6}" y="${y-4}" text-anchor="end" font-family="DM Mono" font-size="10" fill="var(--ink-3)">${f*100}%</text>`;});
+  const pts=SERIES.map((s,i)=>[xAt(i),yFor(s.hit)]);
+  out+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--ink)" stroke-width="1.5"/>`;
+  const peak=SERIES.reduce((b,s,i)=>s.hit>SERIES[b].hit?i:b,0);
+  if(SERIES[peak].hit>0){
+    const px=pts[peak][0],py=pts[peak][1];
+    const anchor=px>W-120?'end':'start',tx=anchor==='end'?px-8:px+8;
+    out+=`<circle cx="${px}" cy="${py}" r="3.5" fill="var(--card)" stroke="var(--ink)" stroke-width="1.5"/>`;
+    out+=`<text x="${tx}" y="${py-8}" text-anchor="${anchor}" font-family="DM Mono" font-size="10" fill="var(--ink-2)">${SERIES[peak].hit.toFixed(1)}% peak</text>`;
+  }
+  [pts[0],pts[pts.length-1]].forEach(p=>{out+=`<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="var(--card)" stroke="var(--ink-3)" stroke-width="1.5"/>`;});
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block">${out}</svg>`;
+}
+document.getElementById('rate').innerHTML=rateSVG();
+
+/* ===== turns table ===== */
+const dt=t=>new Date(t).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+document.getElementById('turns-body').innerHTML=SERIES.map(s=>`<tr><td>${dt(s.t)}</td><td>${s.h}</td><td>${s.m}</td><td class="num">${fmt(s.u)}</td><td class="num">${fmt(s.r)}</td><td class="num">${fmt(s.w)}</td><td class="num">${fmt(s.o)}</td><td class="num">${s.hit.toFixed(1)}</td><td class="num">${s.cost==null?'—':'$'+s.cost.toFixed(4)}</td><td>codex_rollout</td></tr>`).join('');
+document.getElementById('turns-aside').textContent=`${SERIES.length} turns · 1 model · subscription`;
+
+/* ===== OpenRouter model pricing ===== */
+const FALLBACK=[
+ {id:'anthropic/claude-sonnet-4.5',name:'Anthropic: Claude Sonnet 4.5',context_length:1000000,pricing:{prompt:'0.000003',completion:'0.000015',input_cache_read:'0.0000003',input_cache_write:'0.00000375',input_cache_write_1h:'0.000006',overrides:[{min_prompt_tokens:200000,prompt:'0.000006',completion:'0.0000225',input_cache_read:'0.0000006',input_cache_write:'0.0000075',input_cache_write_1h:'0.000012'}]}},
+ {id:'openai/gpt-5.1',name:'OpenAI: GPT-5.1',context_length:400000,pricing:{prompt:'0.00000125',completion:'0.00001',input_cache_read:'0.000000125'}},
+ {id:'deepseek/deepseek-chat-v3.1',name:'DeepSeek: DeepSeek V3.1',context_length:163840,pricing:{prompt:'0.00000025',completion:'0.00000095',input_cache_read:'0.00000013'}}
+];
+let MODELS=FALLBACK, LIVE=false;
+fetch('https://openrouter.ai/api/v1/models').then(r=>r.json()).then(d=>{
+  if(d && d.data){MODELS=d.data;LIVE=true;document.getElementById('price-fetched').textContent='fetched '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});}
+}).catch(()=>{document.getElementById('price-fetched').textContent='offline — embedded snapshot';});
+const per1M=v=>v==null?'—':'$'+(Number(v)*1e6).toFixed(2).replace(/\.?0+$/,'');
+function renderPrice(m){
+  const p=m.pricing||{};
+  const rows=[['Input (fresh)',p.prompt],['Cache read',p.input_cache_read],['Cache write',p.input_cache_write]];
+  if(p.input_cache_write_1h)rows.push(['Cache write (1h)',p.input_cache_write_1h]);
+  rows.push(['Output',p.completion]);
+  document.getElementById('price-calc').innerHTML=rows.map(([l,v])=>`<span>${l}</span><span>${per1M(v)} /1M</span>`).join('')
+    +`<span class="bs-calc__total">Context</span><span class="bs-calc__total">${m.context_length?fmt(m.context_length)+' tok':'—'}</span>`;
+  const ov=p.overrides||[];
+  document.getElementById('tier-note').innerHTML=ov.length?`<span class="bs-field__hint">Tiered pricing: ${ov.map(o=>`≥${fmt(o.min_prompt_tokens)} prompt → ${per1M(o.prompt)} in / ${per1M(o.completion)} out`).join('; ')}</span>`:'';
+  document.getElementById('price-source').textContent=(LIVE?'Recorded':'Snapshot')+' · openrouter.ai/api/v1/models · '+m.id;
+}
+function renderResults(q){
+  const box=document.getElementById('model-results');
+  if(!q){box.innerHTML='';return;}
+  const ql=q.toLowerCase();
+  const hits=MODELS.filter(m=>m.id.toLowerCase().includes(ql)||(m.name||'').toLowerCase().includes(ql)).slice(0,8);
+  box.innerHTML=hits.map((m,i)=>`<button type="button" class="bs-row-btn" data-i="${MODELS.indexOf(m)}"><span class="id">${m.id}</span><span class="nm">${m.name||''}</span></button>`).join('')||'<span class="bs-note">No match in the OpenRouter catalog.</span>';
+  box.querySelectorAll('.bs-row-btn').forEach(b=>b.addEventListener('click',()=>{renderPrice(MODELS[+b.dataset.i]);document.getElementById('model-results').innerHTML='';document.getElementById('model-search').value=MODELS[+b.dataset.i].id;}));
+}
+document.getElementById('model-search').addEventListener('input',e=>renderResults(e.target.value.trim()));
+renderPrice(FALLBACK[0]);
+</script>
+</body>
+</html>

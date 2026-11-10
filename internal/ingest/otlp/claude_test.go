@@ -2,6 +2,7 @@ package otlp
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -237,7 +238,7 @@ func TestZeroTotalMetricSkipped(t *testing.T) {
 	}
 }
 
-func TestUnknownModelNoCost(t *testing.T) {
+func TestUnknownModelDefaultPrice(t *testing.T) {
 	body := []byte(`{"resourceSpans":[{"scopeSpans":[{"spans":[
 		{"name":"claude_code.llm_request","startTimeUnixNano":"1000",
 		 "attributes":[{"key":"request_id","value":{"stringValue":"r"}},{"key":"input_tokens","value":{"intValue":"5"}},{"key":"output_tokens","value":{"intValue":"2"}},{"key":"model","value":{"stringValue":"mystery-model"}}]}
@@ -246,8 +247,12 @@ func TestUnknownModelNoCost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if calls[0].CostUSD != nil || calls[0].CostSource != "none" {
-		t.Errorf("unknown model cost = %v / %s", calls[0].CostUSD, calls[0].CostSource)
+	// Unknown model → opus-5.5 default: U=5, O=2 → (5*4 + 2*20)/1e6 = 0.00006.
+	if calls[0].CostUSD == nil || calls[0].CostSource != "default_price" {
+		t.Fatalf("unknown model cost = %v / %s, want default_price", calls[0].CostUSD, calls[0].CostSource)
+	}
+	if math.Abs(*calls[0].CostUSD-0.00006) > 1e-12 {
+		t.Errorf("default cost = %v, want 0.00006", *calls[0].CostUSD)
 	}
 }
 

@@ -5,6 +5,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -42,6 +43,37 @@ type Server struct {
 	metricMu sync.Mutex
 }
 
+// effectiveOverride layers DB-cached model rates (OpenRouter snapshots and
+// manual edits) under the pricing.json override. Queried per ingest request:
+// the rates table is tiny and rates changes apply without a restart. On a
+// DB error the config override alone is used.
+func (s *Server) effectiveOverride() pricing.Override {
+	if s.db == nil {
+		return s.override
+	}
+	rates, err := s.db.ModelRates()
+	if err != nil || len(rates) == 0 {
+		return s.override
+	}
+	return pricing.Merge(RatesOverride(rates), s.override)
+}
+
+// RatesOverride converts cached DB rates to a pricing override keyed by the
+// stored model prefix. Manual rows are applied after OpenRouter rows so an
+// edited rate wins on the same key.
+func RatesOverride(rates []ledger.ModelRate) pricing.Override {
+	ov := pricing.Override{}
+	for _, pass := range []string{"openrouter", "manual"} {
+		for _, r := range rates {
+			if r.Source != pass || r.Model == "" {
+				continue
+			}
+			ov[r.Model] = pricing.Price{Input: r.Input, CacheRead: r.CacheRead, CacheWrite: r.CacheWrite, Output: r.Output}
+		}
+	}
+	return ov
+}
+
 // New builds the HTTP handler. db may be nil only in tests that exercise
 // read-only metadata routes; ingest requires a db.
 func New(info Info, db *ledger.DB, override pricing.Override) http.Handler {
@@ -55,8 +87,14 @@ func New(info Info, db *ledger.DB, override pricing.Override) http.Handler {
 	mux.HandleFunc("GET /api/summary", s.guardDB(s.handleSummary))
 	mux.HandleFunc("GET /api/rows", s.guardDB(s.handleRows))
 	mux.HandleFunc("GET /api/sessions", s.guardDB(s.handleSessions))
+	mux.HandleFunc("GET /api/rates", s.guardDB(s.handleRatesGet))
+	mux.HandleFunc("PUT /api/rates", s.guardDB(s.handleRatesPut))
+	mux.HandleFunc("DELETE /api/rates", s.guardDB(s.handleRatesDelete))
 	mux.HandleFunc("GET /export.csv", s.guardDB(s.handleExportCSV))
 	mux.HandleFunc("GET /export.json", s.guardDB(s.handleExportJSON))
+	// Embedded DS fonts — the only static assets; nothing is fetched remotely.
+	fontsRoot, _ := fs.Sub(fontsFS, "assets")
+	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServerFS(fontsRoot)))
 	mux.HandleFunc("GET /", s.guardDB(s.handleDashboard))
 
 	return loopbackGuard(mux)
@@ -124,13 +162,13 @@ func (s *Server) handleOTLP(kind otlp.Kind) http.HandlerFunc {
 		}
 		switch kind {
 		case otlp.KindTraces:
-			calls, skipped, err = otlp.SpanCalls(body, s.override)
+			calls, skipped, err = otlp.SpanCalls(body, s.effectiveOverride())
 		case otlp.KindMetrics:
 			state, loadErr := s.loadMetricState()
 			if loadErr != nil {
 				log.Printf("otlp metrics: load state: %v", loadErr)
 			}
-			calls, skipped, err = otlp.MetricCalls(body, state, s.override)
+			calls, skipped, err = otlp.MetricCalls(body, state, s.effectiveOverride())
 			pendingState = &state
 		case otlp.KindLogs:
 			// Accepted and discarded: logs never touch the ledger.
