@@ -4,6 +4,7 @@
 package singleinstance
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -17,30 +18,39 @@ type Lock struct {
 	release func()
 }
 
-// Acquire creates/takes the lock file. If another live process holds it,
-// it returns (nil, pid, nil) so the caller can hand off gracefully.
+// Acquire creates/takes the lock file via O_EXCL. If another live process
+// holds it, it returns (nil, pid, nil) so the caller can hand off gracefully.
+// A stale lock (dead pid, unparsable, or missing content) is removed and
+// retried once; the O_EXCL create closes the two-process TOCTOU window.
 func Acquire(path string) (*Lock, int, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, 0, err
 	}
-	data, err := os.ReadFile(path)
-	if err == nil {
-		if pid, perr := strconv.Atoi(strings.TrimSpace(string(data))); perr == nil && pid > 0 && processAlive(pid) {
+	for attempt := 0; attempt < 2; attempt++ {
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if err == nil {
+			pid := os.Getpid()
+			if _, werr := f.WriteString(strconv.Itoa(pid) + "\n"); werr != nil {
+				f.Close()
+				return nil, 0, werr
+			}
+			l := &Lock{path: path, file: f, release: releaseFunc(path, f, pid)}
+			return l, 0, nil
+		}
+		if !os.IsExist(err) {
+			return nil, 0, err
+		}
+		// Held by someone: live holder wins, a stale one is replaced.
+		if pid := HolderPID(path); pid > 0 && processAlive(pid) {
 			return nil, pid, nil
 		}
-		// Stale lock: take over.
 		_ = os.Remove(path)
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
-	if err != nil {
-		return nil, 0, err
-	}
-	pid := os.Getpid()
-	if _, err := f.WriteString(strconv.Itoa(pid) + "\n"); err != nil {
-		f.Close()
-		return nil, 0, err
-	}
-	l := &Lock{path: path, file: f, release: func() {
+	return nil, 0, fmt.Errorf("could not acquire lock %s", path)
+}
+
+func releaseFunc(path string, f *os.File, pid int) func() {
+	return func() {
 		// Close the handle first: Windows refuses to remove open files.
 		f.Close()
 		// Only remove the file if it still holds our pid (no takeover race).
@@ -49,8 +59,7 @@ func Acquire(path string) (*Lock, int, error) {
 				_ = os.Remove(path)
 			}
 		}
-	}}
-	return l, 0, nil
+	}
 }
 
 // Release removes the lock file (idempotent).

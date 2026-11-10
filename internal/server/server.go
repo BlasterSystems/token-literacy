@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/BlasterSystems/token-literacy/internal/ingest/otlp"
@@ -34,6 +35,11 @@ type Server struct {
 	info     Info
 	db       *ledger.DB
 	override pricing.Override
+
+	// metricMu serializes the cumulative-metric read-modify-write:
+	// loadMetricState → MetricCalls → saveMetricState must be atomic or two
+	// overlapping requests double-count or lose deltas.
+	metricMu sync.Mutex
 }
 
 // New builds the HTTP handler. db may be nil only in tests that exercise
@@ -109,6 +115,13 @@ func (s *Server) handleOTLP(kind otlp.Kind) http.HandlerFunc {
 
 		var calls []ledger.Call
 		var skipped []otlp.Skipped
+		var pendingState *otlp.MetricState
+		// The cumulative-metric state is shared: serialize the whole
+		// load→convert→insert→save sequence for metrics requests.
+		if kind == otlp.KindMetrics {
+			s.metricMu.Lock()
+			defer s.metricMu.Unlock()
+		}
 		switch kind {
 		case otlp.KindTraces:
 			calls, skipped, err = otlp.SpanCalls(body, s.override)
@@ -118,9 +131,7 @@ func (s *Server) handleOTLP(kind otlp.Kind) http.HandlerFunc {
 				log.Printf("otlp metrics: load state: %v", loadErr)
 			}
 			calls, skipped, err = otlp.MetricCalls(body, state, s.override)
-			if saveErr := s.saveMetricState(state); saveErr != nil {
-				log.Printf("otlp metrics: persist state: %v", saveErr)
-			}
+			pendingState = &state
 		case otlp.KindLogs:
 			// Accepted and discarded: logs never touch the ledger.
 			writeOTLPOK(w)
@@ -148,6 +159,13 @@ func (s *Server) handleOTLP(kind otlp.Kind) http.HandlerFunc {
 			}
 			if ok {
 				inserted++
+			}
+		}
+		// Persist the cumulative state only after the rows it produced are
+		// stored: state-then-crash would otherwise lose the delta.
+		if pendingState != nil {
+			if saveErr := s.saveMetricState(*pendingState); saveErr != nil {
+				log.Printf("otlp metrics: persist state: %v", saveErr)
 			}
 		}
 		if inserted > 0 || rejected > 0 {

@@ -21,7 +21,7 @@ First public release: a local-first token ledger for Claude Code and Codex with 
 - **Single instance**: a second `up` opens the existing dashboard and exits; a stale pid lock is taken over.
 - **Simulate**: `tokenledger simulate --fixture DIR` loads OTLP/rollout fixtures through the production ingest path.
 - **Shell (optional)**: Tauri v2 menu-bar/tray app (`src-tauri/`) bundling the same Go binary as a sidecar — health-polled, restarted on crash, stopped on Quit. macOS runs as an accessory (no Dock icon). Unsigned in v0.1 (see README).
-- **Distribution**: `scripts/build-release.sh` produces `tokenledger_<version>_<os>_<arch>` archives plus `checksums.txt` for `darwin/{amd64,arm64,universal}` and `windows/{amd64,arm64}`; CI builds on Ubuntu, macOS, and Windows with a 75% coverage gate.
+- **Distribution**: `scripts/build-release.sh` produces `tokenledger_<version>_<os>_<arch>` archives plus `checksums.txt` for `darwin/{amd64,arm64}` and `windows/{amd64,arm64}` (a macOS universal binary is a local convenience of `make release`); CI builds on Ubuntu, macOS, and Windows with a 75% coverage gate.
 
 ### Notes
 
