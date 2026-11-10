@@ -21,6 +21,12 @@ type Info struct {
 	Version string
 	Started time.Time
 	DBPath  string
+	// CodexDir is the watched sessions directory; CodexDirExists reports
+	// whether it was present at startup (dashboard empty states).
+	CodexDir       string
+	CodexDirExists bool
+	// WSL marks a Windows-Subsystem-for-Linux host (loopback caveat banner).
+	WSL bool
 }
 
 // Server serves the collector over loopback HTTP.
@@ -43,7 +49,9 @@ func New(info Info, db *ledger.DB, override pricing.Override) http.Handler {
 	mux.HandleFunc("GET /api/summary", s.guardDB(s.handleSummary))
 	mux.HandleFunc("GET /api/rows", s.guardDB(s.handleRows))
 	mux.HandleFunc("GET /api/sessions", s.guardDB(s.handleSessions))
-	mux.HandleFunc("GET /", s.handleRoot)
+	mux.HandleFunc("GET /export.csv", s.guardDB(s.handleExportCSV))
+	mux.HandleFunc("GET /export.json", s.guardDB(s.handleExportJSON))
+	mux.HandleFunc("GET /", s.guardDB(s.handleDashboard))
 
 	return loopbackGuard(mux)
 }
@@ -80,15 +88,6 @@ func isLoopbackHost(hostport string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
-}
-
-func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	_, _ = w.Write([]byte("token-literacy collector\n\nhealth: /health\ndashboard: / (M3)\nexport: /export.csv, /export.json (M3)\n"))
 }
 
 // handleOTLP accepts OTLP/HTTP JSON for one signal. Malformed payloads are

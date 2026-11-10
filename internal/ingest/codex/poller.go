@@ -149,6 +149,10 @@ func (p *Poller) ingestFile(path string) (int, []string, error) {
 		return 0, nil, feedErr
 	}
 	res := pr.finalize()
+	if len(res.Warnings) > 0 {
+		// Surface the newest warning to doctor and the dashboard.
+		_ = p.DB.SetMeta("codex_last_warning", strings.Join(res.Warnings, "; "))
+	}
 
 	inserted := 0
 	for _, c := range res.Calls {

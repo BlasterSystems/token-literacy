@@ -195,6 +195,13 @@ func (d *DB) AggregateCount(harness string) (int64, error) {
 	return n, err
 }
 
+// PerTurnCount returns rows for a harness excluding aggregate fallback rows.
+func (d *DB) PerTurnCount(harness string) (int64, error) {
+	var n int64
+	err := d.db.QueryRow(`SELECT COUNT(*) FROM calls WHERE harness=? AND (agent_type IS NULL OR agent_type!='aggregate')`, harness).Scan(&n)
+	return n, err
+}
+
 // GetCursor returns the stored (inode, offset) cursor for a source.
 func (d *DB) GetCursor(source string) (inode int64, offset int64, ok bool, err error) {
 	var i, o sql.NullInt64

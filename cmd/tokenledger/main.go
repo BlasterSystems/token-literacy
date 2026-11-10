@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -15,12 +16,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/BlasterSystems/token-literacy/internal/config"
 	"github.com/BlasterSystems/token-literacy/internal/doctor"
 	"github.com/BlasterSystems/token-literacy/internal/ingest/codex"
-	"github.com/BlasterSystems/token-literacy/internal/config"
 	"github.com/BlasterSystems/token-literacy/internal/ledger"
 	"github.com/BlasterSystems/token-literacy/internal/pricing"
 	"github.com/BlasterSystems/token-literacy/internal/server"
+	"github.com/BlasterSystems/token-literacy/internal/simulate"
 )
 
 var version = "0.1.0-dev"
@@ -42,6 +44,8 @@ func main() {
 		err = cmdSetup(os.Args[2:])
 	case "doctor":
 		err = cmdDoctor(os.Args[2:])
+	case "simulate":
+		err = cmdSimulate(os.Args[2:])
 	case "help", "--help", "-h":
 		usage()
 	default:
@@ -58,11 +62,12 @@ func usage() {
 	fmt.Fprint(os.Stderr, `usage: tokenledger <command>
 
 commands:
-  serve    start the local collector and dashboard (alias: up)
-  setup    merge the Claude Code OTel env block into ~/.claude/settings.json
-  doctor   explain the current installation state
-  version  print the version
-  help     print this message
+  serve     start the local collector and dashboard (alias: up)
+  setup     merge the Claude Code OTel env block into ~/.claude/settings.json
+  doctor    explain the current installation state
+  simulate  load fixture files through the production ingest path
+  version   print the version
+  help      print this message
 `)
 }
 
@@ -126,6 +131,18 @@ func startServe(port int, dbPath, codexDir string, noCodex bool) (*running, erro
 		Version: version,
 		Started: time.Now(),
 		DBPath:  dbPath,
+		CodexDir: func() string {
+			if noCodex {
+				return ""
+			}
+			dir := codexDir
+			if dir == "" {
+				dir, _ = codex.SessionsDir()
+			}
+			return dir
+		}(),
+		CodexDirExists: codexDirExists(noCodex, codexDir),
+		WSL:            detectWSL(),
 	}, db, override)
 
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
@@ -190,6 +207,28 @@ func parsePort(addr string) (int, error) {
 	return port, err
 }
 
+// codexDirExists resolves and stats the effective Codex sessions directory.
+func codexDirExists(noCodex bool, codexDir string) bool {
+	if noCodex {
+		return false
+	}
+	if codexDir == "" {
+		var ok bool
+		codexDir, ok = codex.SessionsDir()
+		if !ok {
+			return false
+		}
+	}
+	fi, err := os.Stat(codexDir)
+	return err == nil && fi.IsDir()
+}
+
+// detectWSL reports a Microsoft WSL kernel (dashboard loopback caveat).
+func detectWSL() bool {
+	data, err := os.ReadFile("/proc/version")
+	return err == nil && bytes.Contains(bytes.ToLower(data), []byte("microsoft"))
+}
+
 func cmdSetup(args []string) error {
 	fs := flag.NewFlagSet("setup", flag.ContinueOnError)
 	dryRun := fs.Bool("dry-run", false, "show what would change without writing")
@@ -243,6 +282,33 @@ func cmdDoctor(args []string) error {
 	if report.Failures() > 0 {
 		os.Exit(1)
 	}
+	return nil
+}
+
+func cmdSimulate(args []string) error {
+	fs := flag.NewFlagSet("simulate", flag.ContinueOnError)
+	dir := fs.String("fixture", "", "directory of fixture files (.json/.json.gz OTLP, .jsonl rollouts)")
+	dbPath := fs.String("db", defaultDBPath(), "ledger database path")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *dir == "" {
+		return fmt.Errorf("simulate requires --fixture DIR")
+	}
+	db, err := ledger.Open(*dbPath)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	override, err := pricing.LoadOverride(overridePath())
+	if err != nil {
+		return err
+	}
+	inserted, err := simulate.Run(db, *dir, override)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("simulated %s: %d rows inserted\n", *dir, inserted)
 	return nil
 }
 
