@@ -102,3 +102,30 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: --bundles ${{ matrix.bundles }}
+
+  # Rebuilds checksums.txt over every published asset (CLI archives AND shell
+  # bundles); the cli job can only checksum its own outputs. Runs last so the
+  # quickstart's "verify the SHA-256 in checksums.txt" covers the DMG/MSI too.
+  checksums:
+    name: finalize checksums
+    needs: [cli, shell]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir assets
+          rm -f assets/checksums.txt
+
+      - name: Regenerate checksums
+        run: |
+          cd assets
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Upload updated checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" assets/checksums.txt --clobber --repo "$GITHUB_REPOSITORY"

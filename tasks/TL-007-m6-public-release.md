@@ -62,3 +62,11 @@ Ship v0.1.0 as a reproducible public release: cross-platform artifacts, checksum
 - Security: No secrets or prompt content; private reporting enabled.
 - Compatibility: macOS Gatekeeper/Windows SmartScreen instructions included.
 - Residual risks: Unsigned builds until certificates are available; document the fallback.
+
+## Post-release smoke (v0.1.0, 2026-11-10)
+
+- New-user artifact check: downloaded `tokenledger_0.1.0_darwin_arm64.tar.gz` (sha256 OK) → `version` 0.1.0 → `up` → `/health` 200.
+- DMG end-to-end (published asset): mounted, copied `tokenledger.app` to /Applications, launched — `tokenledger-shell` spawned the sidecar (`tokenledger up --no-open`), `/health` serves the real ledger, dashboard renders 20 backfilled Codex rows, accessory mode confirmed via `lsappinfo` (`ApplicationType=UIElement`), and killing the sidecar process triggered respawn (supervision works on the released bundle).
+- Gatekeeper: browser downloads are quarantined and rejected as "damaged" (ad-hoc signed, un-notarized); `xattr -d com.apple.quarantine` verified as the workaround — documented in README quickstart.
+- **Gaps found (fixed for the next release):** `checksums.txt` covered only the 4 CLI archives — no published hash for the DMG/MSI/NSIS bundles (v0.1.0 DMG sha256 `6c9172ccf6b36fbbde04f65c46b8cd694d2676e9790eb8703d7403c2cefa2ee0`, verified in-session); release.yml now has a `checksums` finalize job that rebuilds it over all assets. README app-name case corrected (`tokenledger.app`).
+- Still pending live surfaces: Windows quickstart, tray-menu clicks (Open dashboard/Doctor/Copy summary/Quit), one real Claude Code turn, ccusage cross-check.
