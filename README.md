@@ -2,7 +2,7 @@
 
 A local-first token ledger for **Claude Code** and **OpenAI Codex CLI**. It separates fresh input, cache reads, cache writes, and output per turn, then shows the cache economics that a single "total tokens" number hides.
 
-**Status: M4 — installable.** The Go collector ingests Claude Code OTLP telemetry and tails Codex rollout JSONL into the SQLite ledger; the dashboard, setup, doctor, single-instance `up`, per-user autostart, and cross-platform builds are working. Tauri tray shell (M5) and the tagged release (M6) remain.
+**Status: M5 — shell optional.** The Go collector ingests Claude Code OTLP telemetry and tails Codex rollout JSONL into the SQLite ledger; the dashboard, setup, doctor, single-instance `up`, per-user autostart, and cross-platform builds are working. An optional Tauri v2 menu-bar/tray shell (`src-tauri/`) supervises the same Go binary; the CLI remains the supported path.
 
 ## Why
 
@@ -56,6 +56,15 @@ tokenledger install | uninstall [--purge] [--keep-config]            # per-user 
 HTTP surface: `POST /v1/traces`, `/v1/metrics`, `/v1/logs` (OTLP/HTTP JSON, gzip accepted), `GET /health`, `GET /api/summary`, `GET /api/rows`, `GET /api/sessions`, `GET /export.csv`, `/export.json`, `GET /` (dashboard).
 
 Cross-builds: `make release VERSION=x.y.z` produces `darwin/{amd64,arm64}`, `windows/{amd64,arm64}`, a macOS universal binary, and SHA-256 checksums in `dist/`.
+
+## Optional tray shell (M5)
+
+`src-tauri/` is an optional Tauri v2 menu-bar (macOS) / tray (Windows) shell that bundles and supervises the **same** Go binary as a sidecar — it adds no second data path and no duplicated UI. The Go binary is the complete product; the shell is a convenience.
+
+- macOS runs as an accessory app (menu-bar icon, no Dock icon).
+- Menu: Open dashboard, Doctor, Copy last session summary, Quit (Quit stops the sidecar).
+- The sidecar is health-polled and restarted on crash; a second launch adopts the running collector.
+- The shell is unsigned until certificates are available: macOS shows Gatekeeper, Windows shows SmartScreen — verify the SHA-256 checksums and run the Go binary directly as the alternative.
 
 ## Scope
 

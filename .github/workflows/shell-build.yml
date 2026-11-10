@@ -1,0 +1,76 @@
+name: shell-build
+
+# Per-OS builds of the Tauri tray shell with the Go sidecar bundled.
+# Signing/notarization is intentionally absent (no certificates): unsigned
+# fallback is documented in the README and the release checklist.
+
+on:
+  push:
+    branches: [main]
+    paths: ["src-tauri/**", "cmd/**", "internal/**", ".github/workflows/shell-build.yml"]
+  pull_request:
+    paths: ["src-tauri/**", "cmd/**", "internal/**", ".github/workflows/shell-build.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    name: shell (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            triple: aarch64-apple-darwin
+            ext: ""
+            bundles: "app,dmg"
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            triple: x86_64-pc-windows-msvc
+            ext: .exe
+            bundles: "msi,nsis"
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Build Go sidecar
+        shell: bash
+        run: |
+          mkdir -p src-tauri/binaries
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -trimpath -ldflags "-s -w -X main.version=0.0.0-shell" \
+            -o "src-tauri/binaries/tokenledger-${{ matrix.triple }}${{ matrix.ext }}" ./cmd/tokenledger
+
+      - name: Build shell bundles
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --bundles ${{ matrix.bundles }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tokenledger-shell-${{ matrix.os }}
+          path: |
+            src-tauri/target/release/bundle/**
+          if-no-files-found: error
