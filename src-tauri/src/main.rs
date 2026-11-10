@@ -66,6 +66,22 @@ fn main() {
             let handle = app.handle().clone();
             std::thread::spawn(move || supervise(handle));
 
+            // Show the dashboard as soon as the collector answers. First
+            // launch only: later launches open it via the single-instance
+            // handler, and a broken install gets no window (tray + Doctor
+            // remain usable). Window creation must run on the main thread.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                for _ in 0..40 {
+                    if http_get_status(DASHBOARD_URL) == 200 {
+                        let h = handle.clone();
+                        let _ = handle.run_on_main_thread(move || open_dashboard(&h));
+                        return;
+                    }
+                    std::thread::sleep(Duration::from_millis(250));
+                }
+            });
+
             Ok(())
         })
         .on_window_event(|window, event| {
