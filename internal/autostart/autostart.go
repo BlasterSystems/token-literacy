@@ -79,7 +79,8 @@ var loadLaunchd = func(plist string) error {
 func installDarwin(exePath, home string) (string, error) {
 	plist := PlistPath(home)
 	logPath := filepath.Join(home, ".tokenledger", "tokenledger.log")
-	content := fmt.Sprintf(plistTemplate, label, exePath, logPath, logPath)
+	content := fmt.Sprintf(plistTemplate, label,
+		xmlEscape(exePath), xmlEscape(logPath), xmlEscape(logPath))
 	if err := os.MkdirAll(filepath.Dir(plist), 0o755); err != nil {
 		return "", err
 	}
@@ -91,6 +92,11 @@ func installDarwin(exePath, home string) (string, error) {
 		return plist, fmt.Errorf("launchctl load: %v", err)
 	}
 	return plist, nil
+}
+
+// xmlEscape makes paths with &, <, > safe inside the plist.
+func xmlEscape(s string) string {
+	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;").Replace(s)
 }
 
 func uninstallDarwin(home string) (string, error) {
@@ -107,7 +113,9 @@ func uninstallDarwin(home string) (string, error) {
 
 func installWindows(exePath string) (string, error) {
 	key := `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
-	out, err := exec.Command("reg", "add", key, "/v", label, "/t", "REG_SZ", "/d", exePath+" up --no-open", "/f").CombinedOutput()
+	// Quote the exe path: install locations with spaces must survive.
+	value := fmt.Sprintf(`"%s" up --no-open`, exePath)
+	out, err := exec.Command("reg", "add", key, "/v", label, "/t", "REG_SZ", "/d", value, "/f").CombinedOutput()
 	if err != nil {
 		return key, fmt.Errorf("reg add: %v: %s", err, strings.TrimSpace(string(out)))
 	}

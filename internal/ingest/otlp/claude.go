@@ -170,22 +170,26 @@ func MetricCalls(body []byte, state MetricState, override pricing.Override) ([]l
 		state = MetricState{}
 	}
 
-	type group struct {
+	type groupKey struct {
+		tNano int64
 		model string
-		u, r  int64
-		w, o  int64
-		seen  bool
 	}
-	groups := map[int64]*group{}
-	var order []int64
+	type group struct {
+		u, r int64
+		w, o int64
+		seen bool
+	}
+	groups := map[groupKey]*group{}
+	var order []groupKey
 	var skipped []Skipped
 
 	addValue := func(model, typ string, tNano int64, value int64) {
-		g := groups[tNano]
+		key := groupKey{tNano: tNano, model: model}
+		g := groups[key]
 		if g == nil {
-			g = &group{model: model}
-			groups[tNano] = g
-			order = append(order, tNano)
+			g = &group{}
+			groups[key] = g
+			order = append(order, key)
 		}
 		g.seen = true
 		switch typ {
@@ -235,6 +239,13 @@ func MetricCalls(body []byte, state MetricState, override pricing.Override) ([]l
 						skipped = append(skipped, Skipped{Kind: "point", Reason: "no value"})
 						continue
 					}
+					tNano, err := strconv.ParseInt(p.dp.TimeUnixNano, 10, 64)
+					if err != nil {
+						// Parse time before touching the cumulative state:
+						// a dropped point must not consume its delta.
+						skipped = append(skipped, Skipped{Kind: "point", Reason: "missing time"})
+						continue
+					}
 					if !p.delta {
 						// Cumulative: difference against the stored series value.
 						seriesKey := model + "\x00" + typ
@@ -250,27 +261,27 @@ func MetricCalls(body []byte, state MetricState, override pricing.Override) ([]l
 					if value == 0 {
 						continue
 					}
-					tNano, err := strconv.ParseInt(p.dp.TimeUnixNano, 10, 64)
-					if err != nil {
-						skipped = append(skipped, Skipped{Kind: "point", Reason: "missing time"})
-						continue
-					}
 					addValue(model, typ, tNano, value)
 				}
 			}
 		}
 	}
 
-	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
+	sort.Slice(order, func(i, j int) bool {
+		if order[i].tNano != order[j].tNano {
+			return order[i].tNano < order[j].tNano
+		}
+		return order[i].model < order[j].model
+	})
 	var calls []ledger.Call
-	for _, tNano := range order {
-		g := groups[tNano]
+	for _, key := range order {
+		g := groups[key]
 		if !g.seen {
 			continue
 		}
-		id := fmt.Sprintf("claude-code:agg:%d:%s", tNano, g.model)
-		startedAt := tNano / 1_000_000
-		raw := map[string]any{"metric": metricTokenUsage, "type": "aggregate", "model": g.model}
+		id := fmt.Sprintf("claude-code:agg:%d:%s", key.tNano, key.model)
+		startedAt := key.tNano / 1_000_000
+		raw := map[string]any{"metric": metricTokenUsage, "type": "aggregate", "model": key.model}
 		rawJSON, _ := json.Marshal(raw)
 		rawStr := string(rawJSON)
 		call := ledger.Call{
@@ -278,7 +289,7 @@ func MetricCalls(body []byte, state MetricState, override pricing.Override) ([]l
 			Harness:       "claude-code",
 			SessionID:     "aggregate",
 			RequestID:     id,
-			Model:         g.model,
+			Model:         key.model,
 			BillingMode:   "subscription",
 			InputUncached: g.u,
 			CacheRead:     g.r,
@@ -289,7 +300,7 @@ func MetricCalls(body []byte, state MetricState, override pricing.Override) ([]l
 			AgentType:     strPtr("aggregate"),
 			Raw:           &rawStr,
 		}
-		if cost, ok := pricing.Cost(g.model, override, g.u, g.r, g.w, g.o); ok {
+		if cost, ok := pricing.Cost(key.model, override, g.u, g.r, g.w, g.o); ok {
 			call.CostUSD = &cost
 			call.CostSource = "list_price"
 		} else {

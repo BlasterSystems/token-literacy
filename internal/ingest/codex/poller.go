@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"hash/fnv"
 	"io"
 	"io/fs"
 	"os"
@@ -121,12 +123,20 @@ func (p *Poller) ingestFile(path string) (int, []string, error) {
 	}
 	size := fi.Size()
 	key := "codex:" + path
-	_, offset, _, err := p.DB.GetCursor(key)
+	storedInode, offset, state, ok, err := p.DB.GetCursor(key)
 	if err != nil {
 		return 0, nil, err
 	}
+	currentInode := fileID(fi)
+	// Rotation: a different inode at the same path restarts from the top
+	// (response_id dedupe makes the replay safe). inode 0 = unknown.
+	if ok && storedInode != 0 && currentInode != 0 && storedInode != currentInode {
+		offset = 0
+		state = ""
+	}
 	if offset > size {
-		offset = 0 // rotated or truncated; response_id dedupe protects rows
+		offset = 0 // shrunk in place; same reasoning
+		state = ""
 	}
 	if offset == size {
 		return 0, nil, nil
@@ -143,7 +153,15 @@ func (p *Poller) ingestFile(path string) (int, []string, error) {
 		}
 	}
 
-	pr := &parser{override: p.Override}
+	pr := &parser{override: p.Override, fileSalt: pathSalt(path)}
+	if offset > 0 && state != "" {
+		// Restored session/model/cli_version/parent from the previous poll:
+		// without this, resumed windows lose attribution entirely.
+		var st State
+		if json.Unmarshal([]byte(state), &st) == nil {
+			pr.seed(st)
+		}
+	}
 	consumed, feedErr := feed(bufio.NewReader(f), pr.handleLine)
 	if feedErr != nil {
 		return 0, nil, feedErr
@@ -156,19 +174,36 @@ func (p *Poller) ingestFile(path string) (int, []string, error) {
 
 	inserted := 0
 	for _, c := range res.Calls {
-		ok, err := p.DB.InsertCall(c)
+		okIns, err := p.DB.InsertCall(c)
 		if err != nil {
 			return inserted, res.Warnings, err
 		}
-		if ok {
+		if okIns {
 			inserted++
 		}
 	}
-	// Advance the cursor past complete, successfully stored lines only.
-	if err := p.DB.SetCursor(key, fileID(fi), offset+consumed); err != nil {
+	// Advance the cursor past complete, successfully stored lines only,
+	// persisting the parser state for the next poll.
+	if err := p.DB.SetCursor(key, currentInode, offset+consumed, marshalState(pr.state())); err != nil {
 		return inserted, res.Warnings, err
 	}
 	return inserted, res.Warnings, nil
+}
+
+// pathSalt hashes the file path so event-fallback IDs cannot collide across
+// files of one resumed session.
+func pathSalt(path string) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(path))
+	return h.Sum64()
+}
+
+func marshalState(s State) string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 // feed reads complete newline-terminated lines. A trailing line without a
@@ -193,9 +228,10 @@ func feed(r *bufio.Reader, handle func([]byte)) (int64, error) {
 	}
 }
 
-// ParseResult is exported for tests: parse a whole byte payload.
-func ParseResult(data []byte, override pricing.Override) Result {
-	pr := &parser{override: override}
+// ParseResult is exported for tests and simulate: parse a whole payload
+// with an explicit file salt (0 is fine for single-file parses).
+func ParseResult(data []byte, override pricing.Override, fileSalt uint64) Result {
+	pr := &parser{override: override, fileSalt: fileSalt}
 	feed(bufio.NewReader(bytes.NewReader(data)), pr.handleLine)
 	return pr.finalize()
 }

@@ -110,14 +110,14 @@ func TestInsertEmptySourceRejected(t *testing.T) {
 
 func TestCursorOverwrite(t *testing.T) {
 	db := openTest(t)
-	if err := db.SetCursor("f", 1, 10); err != nil {
+	if err := db.SetCursor("f", 1, 10, ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.SetCursor("f", 1, 20); err != nil {
+	if err := db.SetCursor("f", 1, 20, "{\"session_id\":\"s\"}"); err != nil {
 		t.Fatal(err)
 	}
-	_, offset, ok, _ := db.GetCursor("f")
-	if !ok || offset != 20 {
-		t.Fatalf("offset = %d, want 20", offset)
+	_, offset, state, ok, _ := db.GetCursor("f")
+	if !ok || offset != 20 || state != "{\"session_id\":\"s\"}" {
+		t.Fatalf("cursor = %d %q %v", offset, state, ok)
 	}
 }

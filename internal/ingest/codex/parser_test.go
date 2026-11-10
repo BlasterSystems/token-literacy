@@ -24,11 +24,11 @@ func parse(t *testing.T, body string) Result {
 	if !strings.HasSuffix(body, "\n") {
 		body += "\n"
 	}
-	return ParseResult([]byte(body), nil)
+	return ParseResult([]byte(body), nil, 0)
 }
 
 func TestParseRecord(t *testing.T) {
-	res := ParseResult(fixture(t, "record.jsonl"), nil)
+	res := ParseResult(fixture(t, "record.jsonl"), nil, 0)
 	if len(res.Warnings) != 0 {
 		t.Fatalf("warnings = %v", res.Warnings)
 	}
@@ -64,7 +64,7 @@ func TestParseRecord(t *testing.T) {
 }
 
 func TestRecordWinsOverEvent(t *testing.T) {
-	res := ParseResult(fixture(t, "record_and_event.jsonl"), nil)
+	res := ParseResult(fixture(t, "record_and_event.jsonl"), nil, 0)
 	if len(res.Calls) != 1 {
 		t.Fatalf("calls = %d, want 1 (event_msg ignored when a record exists)", len(res.Calls))
 	}
@@ -74,12 +74,12 @@ func TestRecordWinsOverEvent(t *testing.T) {
 }
 
 func TestEventOnlyFallback(t *testing.T) {
-	res := ParseResult(fixture(t, "event_only.jsonl"), nil)
+	res := ParseResult(fixture(t, "event_only.jsonl"), nil, 0)
 	if len(res.Calls) != 1 {
 		t.Fatalf("calls = %d", len(res.Calls))
 	}
 	c := res.Calls[0]
-	if c.ID != "codex:e:01a1a72a-0d35-7111-bd84-3b9ad1107244:2" {
+	if c.ID != "codex:e:01a1a72a-0d35-7111-bd84-3b9ad1107244:0:2" {
 		t.Errorf("id = %s", c.ID)
 	}
 	if c.InputUncached != 29765-12000 || c.CacheRead != 12000 || c.Output != 153 {
@@ -91,7 +91,7 @@ func TestEventOnlyFallback(t *testing.T) {
 }
 
 func TestSubagentAttribution(t *testing.T) {
-	res := ParseResult(fixture(t, "subagent.jsonl"), nil)
+	res := ParseResult(fixture(t, "subagent.jsonl"), nil, 0)
 	if len(res.Calls) != 1 {
 		t.Fatalf("calls = %d", len(res.Calls))
 	}

@@ -15,7 +15,7 @@ import (
 )
 
 // schemaVersion is the current PRAGMA user_version of the schema.
-const schemaVersion = 1
+const schemaVersion = 2
 
 // Call is one normalized per-turn token row (docs/PLAN.md data contract).
 type Call struct {
@@ -145,6 +145,7 @@ CREATE TABLE IF NOT EXISTS ingest_cursor (
 	source     TEXT PRIMARY KEY,
 	inode      INTEGER,
 	offset     INTEGER NOT NULL DEFAULT 0,
+	state      TEXT NOT NULL DEFAULT '',
 	updated_at INTEGER NOT NULL
 );
 
@@ -176,6 +177,17 @@ func (d *DB) migrate() error {
 		}
 		if _, err := d.db.Exec(schemaV1); err != nil {
 			return fmt.Errorf("create schema: %w", err)
+		}
+		if _, err := d.db.Exec(fmt.Sprintf("PRAGMA user_version=%d", schemaVersion)); err != nil {
+			return fmt.Errorf("stamp schema version: %w", err)
+		}
+		return nil
+	case version == 1:
+		// v2: ingest_cursor gains a `state` column carrying the rollout
+		// parser state (session/model/cli_version/parent/records flag) so
+		// resumed tail polls keep their attribution.
+		if _, err := d.db.Exec(`ALTER TABLE ingest_cursor ADD COLUMN state TEXT NOT NULL DEFAULT ''`); err != nil {
+			return fmt.Errorf("migrate v1->v2: %w", err)
 		}
 		if _, err := d.db.Exec(fmt.Sprintf("PRAGMA user_version=%d", schemaVersion)); err != nil {
 			return fmt.Errorf("stamp schema version: %w", err)

@@ -45,6 +45,26 @@ func ApplyCodexOtelSetup(path, endpoint string, dryRun bool) (Result, error) {
 
 	block := codexMarkerBegin + "\n" + CodexOtelBlock(endpoint) + codexMarkerEnd + "\n"
 	lines := strings.Split(string(data), "\n")
+	// An unmarked section with the same header would duplicate the TOML
+	// table and make the file unparsable for Codex; refuse instead. Lines
+	// inside our own marked block are skipped (idempotent re-runs).
+	inOwnBlock := false
+	for _, ln := range lines {
+		trimmed := strings.TrimSpace(ln)
+		switch trimmed {
+		case codexMarkerBegin:
+			inOwnBlock = true
+			continue
+		case codexMarkerEnd:
+			inOwnBlock = false
+			continue
+		}
+		if !inOwnBlock && trimmed == "[otel.metrics_exporter.otlp-http]" {
+			return res, fmt.Errorf(
+				"%s already defines [otel.metrics_exporter.otlp-http] outside the tokenledger block; merge it manually or delete the section, then rerun setup",
+				path)
+		}
+	}
 	var out []string
 	inBlock := false
 	replaced := false

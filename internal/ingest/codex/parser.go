@@ -66,6 +66,16 @@ type Result struct {
 	Warnings []string
 }
 
+// State is the parser state that must survive across tail polls: without
+// it, a resumed window loses session_meta/turn_context context.
+type State struct {
+	SessionID   string  `json:"session_id"`
+	Model       string  `json:"model"`
+	CLIVersion  string  `json:"cli_version"`
+	Parent      *string `json:"parent_thread_id,omitempty"`
+	RecordsSeen bool    `json:"records_seen"`
+}
+
 // parser carries per-file state.
 type parser struct {
 	override   pricing.Override
@@ -73,10 +83,31 @@ type parser struct {
 	cliVersion string
 	parent     *string
 	model      string
+	fileSalt   uint64 // salts event-fallback IDs; unique per file
 
 	records bool
 	events  []ledger.Call
 	res     Result
+}
+
+// seed restores state persisted by a previous poll of the same file.
+func (p *parser) seed(s State) {
+	p.sessionID = s.SessionID
+	p.model = s.Model
+	p.cliVersion = s.CLIVersion
+	p.parent = s.Parent
+	p.records = p.records || s.RecordsSeen
+}
+
+// state returns the parser state to persist until the next poll.
+func (p *parser) state() State {
+	return State{
+		SessionID:   p.sessionID,
+		Model:       p.model,
+		CLIVersion:  p.cliVersion,
+		Parent:      p.parent,
+		RecordsSeen: p.records,
+	}
 }
 
 // finalize returns the parsed output, applying the file-level rule:
@@ -131,7 +162,7 @@ func (p *parser) handleLine(chunk []byte) {
 			p.warnf("token_usage_record without usage (response_id=%s)", rec.ResponseID)
 			return
 		}
-		call, ok := p.toCall(rec.Usage, "codex:"+rec.ResponseID, rec.ResponseID, l, rec.ThreadID)
+		call, ok := p.toCall(rec.Usage, "codex:"+rec.ResponseID, rec.ResponseID, l, rec.ThreadID, rec.SessionID)
 		if !ok {
 			return
 		}
@@ -144,8 +175,8 @@ func (p *parser) handleLine(chunk []byte) {
 		if ev.Info == nil || ev.Info.LastTokenUsage == nil {
 			return
 		}
-		id := fmt.Sprintf("codex:e:%s:%d", p.sessionID, l.Ordinal)
-		call, ok := p.toCall(ev.Info.LastTokenUsage, id, "", l, "")
+		id := fmt.Sprintf("codex:e:%s:%d:%d", p.sessionID, p.fileSalt, l.Ordinal)
+		call, ok := p.toCall(ev.Info.LastTokenUsage, id, "", l, "", "")
 		if !ok {
 			return
 		}
@@ -154,11 +185,12 @@ func (p *parser) handleLine(chunk []byte) {
 }
 
 // toCall normalizes one usage record: U = input - cached, R = cached,
-// W = cache_write (0 for OpenAI list prices), O = output. The additive
-// invariant U + R + W == input_tokens is enforced here; failing records are
-// reported as warnings, never guessed.
-func (p *parser) toCall(u *tokenUsage, id, requestID string, l line, agentID string) (ledger.Call, bool) {
-	if u.InputTokens < 0 || u.CachedInputTokens < 0 || u.OutputTokens < 0 {
+// W = cache_write (0 for OpenAI list prices), O = output. It mirrors every
+// invariant InsertCall enforces so a bad record becomes a warning instead
+// of stalling the file's cursor.
+func (p *parser) toCall(u *tokenUsage, id, requestID string, l line, agentID, recordSessionID string) (ledger.Call, bool) {
+	if u.InputTokens < 0 || u.CachedInputTokens < 0 || u.CacheWriteInputTokens < 0 ||
+		u.OutputTokens < 0 || u.ReasoningOutputTokens < 0 {
 		p.warnf("negative token counts in %s", id)
 		return ledger.Call{}, false
 	}
@@ -169,6 +201,15 @@ func (p *parser) toCall(u *tokenUsage, id, requestID string, l line, agentID str
 			id, u.CachedInputTokens, u.InputTokens)
 		return ledger.Call{}, false
 	}
+	if u.ReasoningOutputTokens > u.OutputTokens {
+		p.warnf("reasoning exceeds output for %s: reasoning=%d output=%d",
+			id, u.ReasoningOutputTokens, u.OutputTokens)
+		return ledger.Call{}, false
+	}
+	if u.InputTokens+u.OutputTokens == 0 {
+		p.warnf("zero-total usage in %s", id)
+		return ledger.Call{}, false
+	}
 	if u.TotalTokens != 0 && u.TotalTokens != u.InputTokens+u.OutputTokens {
 		p.warnf("total mismatch for %s: total=%d input+output=%d",
 			id, u.TotalTokens, u.InputTokens+u.OutputTokens)
@@ -176,6 +217,11 @@ func (p *parser) toCall(u *tokenUsage, id, requestID string, l line, agentID str
 	}
 
 	sessionID := p.sessionID
+	if sessionID == "" && recordSessionID != "" {
+		// Records carry their own session_id; prefer it if the head state
+		// was lost (defence in depth for resumed windows).
+		sessionID = recordSessionID
+	}
 	if sessionID == "" {
 		sessionID = "unknown"
 	}

@@ -158,6 +158,55 @@ func TestMetricCallsCumulative(t *testing.T) {
 	}
 }
 
+// Review finding (major): two models in one export window must produce two
+// rows, not one merged row with the wrong model.
+func TestMetricCallsGroupsByModel(t *testing.T) {
+	body := map[string]any{
+		"resourceMetrics": []map[string]any{{
+			"scopeMetrics": []map[string]any{{
+				"metrics": []map[string]any{{
+					"name": "claude_code.token.usage",
+					"sum": map[string]any{
+						"aggregationTemporality": 2,
+						"dataPoints": []map[string]any{
+							dp("input", 10, "claude-sonnet-4-5"),
+							dp("output", 5, "claude-sonnet-4-5"),
+							dp("input", 7, "claude-haiku-4-5"),
+							dp("output", 2, "claude-haiku-4-5"),
+						},
+					},
+				}},
+			}},
+		}},
+	}
+	b, _ := json.Marshal(body)
+	calls, _, err := MetricCalls(b, MetricState{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("calls = %d, want 2 (one per model)", len(calls))
+	}
+	byModel := map[string]ledger.Call{}
+	for _, c := range calls {
+		byModel[c.Model] = c
+	}
+	if byModel["claude-sonnet-4-5"].InputUncached != 10 || byModel["claude-haiku-4-5"].InputUncached != 7 {
+		t.Fatalf("per-model input wrong: %+v", calls)
+	}
+}
+
+func dp(typ string, v int64, model string) map[string]any {
+	return map[string]any{
+		"timeUnixNano": "100",
+		"asInt":        v,
+		"attributes": []map[string]any{
+			{"key": "type", "value": map[string]any{"stringValue": typ}},
+			{"key": "model", "value": map[string]any{"stringValue": model}},
+		},
+	}
+}
+
 func TestZeroTotalMetricSkipped(t *testing.T) {
 	body := map[string]any{
 		"resourceMetrics": []map[string]any{{

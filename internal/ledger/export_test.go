@@ -115,7 +115,7 @@ func TestCursorLag(t *testing.T) {
 	if lag, _ := db.CursorLag(); lag != 0 {
 		t.Fatalf("lag = %d", lag)
 	}
-	if err := db.SetCursor("f", 1, 1); err != nil {
+	if err := db.SetCursor("f", 1, 1, ""); err != nil {
 		t.Fatal(err)
 	}
 	if lag, _ := db.CursorLag(); lag == 0 {

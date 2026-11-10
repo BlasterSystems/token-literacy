@@ -62,7 +62,7 @@ Agent bills are dominated by context replay, not output. A single "total tokens"
 
 - `internal/ingest/codex`: resolve `$CODEX_HOME/sessions` or `~/.codex/sessions`; recursive discovery; 1 s polling; per-file `(inode, offset)` cursor; complete-line reads.
 - Parser: `session_meta`, `turn_context`, `token_usage_record`; `event_msg token_count` only as a fallback when no record exists; never both.
-- Mapping: `U = input_tokens − cached_input_tokens`, `R = cached_input_tokens`, `W = 0`, `O = output_tokens`, `reasoning = reasoning_output_tokens` (subset, not added), `prompt_total = input_tokens`, `total = total_tokens`.
+- Mapping: `U = input_tokens − cached_input_tokens`, `R = cached_input_tokens`, `W = cache_write_input_tokens` (present in current builds, observed 0), `O = output_tokens`, `reasoning = reasoning_output_tokens` (subset, not added), `prompt_total = input_tokens + W`, `total = total_tokens`.
 - Dedupe `response_id` globally; resumed sessions replay into new files; subagents share the parent `session_id` but carry their own `id`/`parent_thread_id`.
 - Backfill all existing rollouts on first start; parser misses surface as an unsupported-version warning in `doctor`, never as guessed numbers.
 - Optional `--with-codex-otel`: write `[otel.metrics_exporter.otlp-http]` for `codex.turn.cost_microusd`; not required for token counts.
@@ -182,7 +182,7 @@ Agent bills are dominated by context replay, not output. A single "total tokens"
 ### Invariants
 
 - Claude Code: `input_uncached = input_tokens`, `cache_read = cache_read_tokens`, `cache_write = cache_creation_tokens`, `output = output_tokens`; `prompt_total` must equal the sum reported by the span.
-- Codex: `input_uncached + cache_read == input_tokens`; `prompt_total == input_tokens`; `prompt_total + output == total_tokens`; `reasoning` is a subset of `output` and is never added again.
+- Codex: `input_uncached = input_tokens − cached_input_tokens`, `cache_read = cached_input_tokens`, `cache_write = cache_write_input_tokens` (present in current Codex builds, observed 0), `output = output_tokens`, `reasoning = reasoning_output_tokens` (subset, not added); `prompt_total = input_tokens + cache_write` (equals `input_tokens` when no cache writes, the observed case); `total = total_tokens`.
 - No row is inserted if it would be negative, zero-total, or fail its harness invariant; the payload is logged with a redacted shape.
 - Dedupe: Claude `request_id`; Codex `response_id`. `event_msg token_count` is ignored whenever a `token_usage_record` exists for the file.
 

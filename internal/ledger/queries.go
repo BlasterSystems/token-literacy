@@ -202,25 +202,27 @@ func (d *DB) PerTurnCount(harness string) (int64, error) {
 	return n, err
 }
 
-// GetCursor returns the stored (inode, offset) cursor for a source.
-func (d *DB) GetCursor(source string) (inode int64, offset int64, ok bool, err error) {
+// GetCursor returns the stored (inode, offset) cursor and parser state for
+// a source. state is "" when none was persisted.
+func (d *DB) GetCursor(source string) (inode int64, offset int64, state string, ok bool, err error) {
 	var i, o sql.NullInt64
-	err = d.db.QueryRow(`SELECT inode, offset FROM ingest_cursor WHERE source=?`, source).Scan(&i, &o)
+	var st string
+	err = d.db.QueryRow(`SELECT inode, offset, state FROM ingest_cursor WHERE source=?`, source).Scan(&i, &o, &st)
 	if err == sql.ErrNoRows {
-		return 0, 0, false, nil
+		return 0, 0, "", false, nil
 	}
 	if err != nil {
-		return 0, 0, false, err
+		return 0, 0, "", false, err
 	}
-	return i.Int64, o.Int64, true, nil
+	return i.Int64, o.Int64, st, true, nil
 }
 
-// SetCursor stores the (inode, offset) cursor for a source.
-func (d *DB) SetCursor(source string, inode int64, offset int64) error {
-	_, err := d.db.Exec(`INSERT INTO ingest_cursor (source, inode, offset, updated_at)
-		VALUES (?,?,?,strftime('%s','now') * 1000)
-		ON CONFLICT(source) DO UPDATE SET inode=excluded.inode, offset=excluded.offset, updated_at=excluded.updated_at`,
-		source, inode, offset)
+// SetCursor stores the (inode, offset) cursor and parser state for a source.
+func (d *DB) SetCursor(source string, inode int64, offset int64, state string) error {
+	_, err := d.db.Exec(`INSERT INTO ingest_cursor (source, inode, offset, state, updated_at)
+		VALUES (?,?,?,?,strftime('%s','now') * 1000)
+		ON CONFLICT(source) DO UPDATE SET inode=excluded.inode, offset=excluded.offset, state=excluded.state, updated_at=excluded.updated_at`,
+		source, inode, offset, state)
 	return err
 }
 

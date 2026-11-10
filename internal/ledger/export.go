@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 )
 
 // ExportColumns is the stable CSV/JSON export column order (data contract).
@@ -42,7 +43,18 @@ func WriteJSON(w io.Writer, rows []Call) error {
 	return enc.Encode(rows)
 }
 
+// exportField renders one column; string cells are neutralized against
+// spreadsheet formula injection (=, +, -, @ prefixes) because harness
+// payloads influence values like session_id, model, and stop_reason.
 func exportField(col string, c Call) string {
+	s := exportFieldRaw(col, c)
+	if strings.HasPrefix(s, "=") || strings.HasPrefix(s, "+") || strings.HasPrefix(s, "-") || strings.HasPrefix(s, "@") {
+		return "'" + s
+	}
+	return s
+}
+
+func exportFieldRaw(col string, c Call) string {
 	optInt := func(v *int64) string {
 		if v == nil {
 			return ""

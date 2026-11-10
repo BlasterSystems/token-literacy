@@ -311,8 +311,10 @@ func stackedBarsSVG(rows []ledger.Call) string {
 				h = 1
 			}
 			y -= h
+			// Row IDs come from harness payloads (request_id / response_id);
+			// escape them: this SVG reaches the page via template.HTML.
 			fmt.Fprintf(&b, `<rect x="%d" y="%.2f" width="%d" height="%.2f" fill="%s"><title>%s U=%d R=%d W=%d O=%d</title></rect>`,
-				x, y, barWidth, h, seg.c, c.ID, c.InputUncached, c.CacheRead, c.CacheWrite, c.Output)
+				x, y, barWidth, h, seg.c, template.HTMLEscapeString(c.ID), c.InputUncached, c.CacheRead, c.CacheWrite, c.Output)
 		}
 	}
 	fmt.Fprintf(&b, `<line x1="0" y1="%d" x2="%d" y2="%d" stroke="var(--border)"/>`, barsHeight-10, width, barsHeight-10)

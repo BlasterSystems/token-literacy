@@ -30,7 +30,7 @@ func Run(db *ledger.DB, dir string, override pricing.Override) (inserted int, er
 			if readErr != nil {
 				return readErr
 			}
-			res := codex.ParseResult(data, override)
+			res := codex.ParseResult(data, override, 0)
 			for _, c := range res.Calls {
 				if ok, err := db.InsertCall(c); err == nil && ok {
 					n++

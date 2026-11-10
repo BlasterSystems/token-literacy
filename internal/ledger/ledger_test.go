@@ -156,15 +156,15 @@ func TestSessionRollup(t *testing.T) {
 
 func TestCursorsAndMeta(t *testing.T) {
 	db := openTest(t)
-	if _, _, ok, _ := db.GetCursor("x"); ok {
+	if _, _, _, ok, _ := db.GetCursor("x"); ok {
 		t.Fatal("cursor should be absent")
 	}
-	if err := db.SetCursor("x", 42, 1024); err != nil {
+	if err := db.SetCursor("x", 42, 1024, ""); err != nil {
 		t.Fatal(err)
 	}
-	inode, offset, ok, err := db.GetCursor("x")
-	if err != nil || !ok || inode != 42 || offset != 1024 {
-		t.Fatalf("cursor = %d %d %v %v", inode, offset, ok, err)
+	inode, offset, state, ok, err := db.GetCursor("x")
+	if err != nil || !ok || inode != 42 || offset != 1024 || state != "" {
+		t.Fatalf("cursor = %d %d %q %v %v", inode, offset, state, ok, err)
 	}
 	if err := db.SetMeta("k", "v"); err != nil {
 		t.Fatal(err)
