@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/csv"
 	"encoding/json"
+	"math"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -184,5 +185,65 @@ func TestChartRowsAscending(t *testing.T) {
 	}
 	if got := chartRows(nil); len(got) != 0 {
 		t.Errorf("empty rows should yield no chart points")
+	}
+}
+
+func TestDashboardEstimatesUnpricedTurns(t *testing.T) {
+	handler, db := newTestHandler(t)
+	// A row stored before default pricing existed: no cost, cost_source=none.
+	if _, err := db.InsertCall(ledger.Call{
+		ID: "u1", Harness: "codex", SessionID: "s1", Model: "mystery-model",
+		InputUncached: 50, CacheRead: 50, CacheWrite: 0, Output: 5,
+		PromptTotal: 100, TotalTokens: 105, StartedAt: 1000,
+		Source: "codex_rollout", CostSource: "none",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := doRequest(t, handler, http.MethodGet, "/", nil, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("dashboard = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "≈") {
+		t.Error("estimate marker missing from cost card")
+	}
+	if !strings.Contains(body, "turns unpriced") {
+		t.Error("estimate breakdown missing")
+	}
+
+	rec = doRequest(t, handler, http.MethodGet, "/api/summary", nil, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("summary = %d", rec.Code)
+	}
+	var sum struct {
+		CostEstimateUSD float64 `json:"cost_estimate_usd"`
+		UnpricedCalls   int64   `json:"unpriced_calls"`
+		UsedDefault     bool    `json:"unpriced_used_default"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &sum); err != nil {
+		t.Fatal(err)
+	}
+	if sum.UnpricedCalls != 1 || !sum.UsedDefault || sum.CostEstimateUSD <= 0 {
+		t.Fatalf("estimate = %+v", sum)
+	}
+	// (50*4 + 50*0.2 + 5*20)/1e6 = 0.00031 at the opus-5.5 default.
+	if math.Abs(sum.CostEstimateUSD-0.00031) > 1e-12 {
+		t.Errorf("estimate = %v, want 0.00031", sum.CostEstimateUSD)
+	}
+}
+
+func TestRatesOverrideManualWins(t *testing.T) {
+	rates := []ledger.ModelRate{
+		{Model: "gpt-6", Input: 1, Source: "openrouter"},
+		{Model: "gpt-6", Input: 9, Source: "manual"},
+		{Model: "gpt-6-luna", Input: 2, Source: "openrouter"},
+	}
+	ov := RatesOverride(rates)
+	if ov["gpt-6"].Input != 9 {
+		t.Fatalf("manual row lost: %+v", ov)
+	}
+	if ov["gpt-6-luna"].Input != 2 {
+		t.Fatalf("openrouter row lost: %+v", ov)
 	}
 }
