@@ -16,13 +16,13 @@ Serve a dependency-free dashboard that makes per-turn cache economics legible, p
 
 ## Acceptance criteria
 
-- [ ] Summary cards: total tokens, hit rate, fresh share, context tax, cost, cost per output token.
-- [ ] Per-turn stacked bars (`U/R/W/O`) and a cache-hit-rate line.
-- [ ] Session, harness, and date filters; turn table with source and cost label.
-- [ ] `GET /api/summary`, `/api/rows`, `/api/sessions`; `GET /export.csv`, `/export.json`.
-- [ ] Empty states: no Claude spans, absent Codex directory, unsupported Codex version, WSL warning.
-- [ ] No external asset requests; 1280 px and 390 px browser checks; no horizontal overflow.
-- [ ] CSV for a filter equals the dashboard's numbers.
+- [x] Summary cards: total tokens, hit rate, fresh share, context tax, cost, cost per output token.
+- [x] Per-turn stacked bars (`U/R/W/O`) and a cache-hit-rate line.
+- [x] Session, harness, and date filters; turn table with source and cost label.
+- [x] `GET /api/summary`, `/api/rows`, `/api/sessions`; `GET /export.csv`, `/export.json`.
+- [x] Empty states: no Claude spans, absent Codex directory, unsupported Codex version, WSL warning.
+- [x] No external asset requests; 1280 px and 390 px browser checks; no horizontal overflow. (`scrollWidth == innerWidth` at both widths; light and dark captured; the only non-relative hrefs are the local export links.)
+- [x] CSV for a filter equals the dashboard's numbers. (`TestExportCSVMatchesRows` compares every row's id/U/total between `/export.csv?harness=codex` and `/api/rows?harness=codex&order=asc`.)
 
 ## Scope
 
@@ -36,11 +36,15 @@ Serve a dependency-free dashboard that makes per-turn cache economics legible, p
 
 ## Plan
 
-- [ ] Implement query API and aggregate SQL.
-- [ ] Implement the dashboard layout and two charts.
-- [ ] Implement filters and CSV/JSON export.
-- [ ] Add empty/error states.
-- [ ] Browser-verify light/dark and narrow viewport.
+- [x] Implement query API and aggregate SQL. (TL-002/003 surface reused; hit rate, fresh share, context tax derive from the additive row only.)
+- [x] Implement the dashboard layout and two charts. (`internal/server/dashboard.go`; inline SVG stacked bars + hit-rate polyline; `prefers-color-scheme` light/dark.)
+- [x] Implement filters and CSV/JSON export. (`/export.csv` and `/export.json` share the dashboard's filter; export is ascending and unpaginated for reproducibility.)
+- [x] Add empty/error states. (no-rows empty state; Claude aggregate-only banner; Codex dir absent; `codex_last_warning` for unsupported/malformed rollouts; WSL loopback note.)
+- [x] Browser-verify light/dark and narrow viewport. (Chromium at 1280x900 and 390x844; both themes; zero horizontal overflow.)
+
+## Extra delivered
+
+- `tokenledger simulate --fixture DIR` (brought forward from M4) so fixtures load through the production ingest path — used for the 20-turn browser check and for tests.
 
 ## Architecture impact
 
@@ -50,10 +54,15 @@ Serve a dependency-free dashboard that makes per-turn cache economics legible, p
 
 ## Validation evidence
 
-- Configuration validation:
-- Tests:
-- Build:
-- Documentation check:
+- Configuration validation: `.agentic/bin/validate` → "Configuration validation passed"
+- Tests: `go test ./...` → ok (9 packages); `make cover` total **77.8%** (gate 75%)
+- Build: `make build` → `bin/tokenledger`
+- Documentation check: `.agentic/bin/docs-check` → exit 0
+- Browser verification (Chromium, `tokenledger up --port 43181` + 20-turn simulated session):
+  - 1280x900: `scrollWidth == innerWidth == 1280` (no horizontal overflow); both charts and 20-row table rendered; light and dark themes captured
+  - 390x844: `scrollWidth == innerWidth == 390`; cards stack; charts scale responsively
+  - Summary: 406,330 total tokens, 87.4% hit rate, 8.3% fresh share, 42.09 context tax, $0.4081 API-equivalent cost, $0.000043/output token
+- CSV↔dashboard equality is a permanent test (`TestExportCSVMatchesRows`); additive invariant preserved in JSON export (`TestExportJSON`).
 
 ## Review
 

@@ -1,0 +1,51 @@
+{
+  "resourceMetrics": [
+    {
+      "resource": {
+        "attributes": [
+          { "key": "service.name", "value": { "stringValue": "claude-code" } }
+        ]
+      },
+      "scopeMetrics": [
+        {
+          "scope": { "name": "claude-code", "version": "2.1.268" },
+          "metrics": [
+            {
+              "name": "claude_code.token.usage",
+              "sum": {
+                "aggregationTemporality": 2,
+                "isMonotonic": true,
+                "dataPoints": [
+                  {
+                    "timeUnixNano": "1700000000000000000",
+                    "asInt": "707",
+                    "attributes": [
+                      { "key": "type", "value": { "stringValue": "input" } },
+                      { "key": "model", "value": { "stringValue": "claude-sonnet-4-5" } }
+                    ]
+                  },
+                  {
+                    "timeUnixNano": "1700000000000000000",
+                    "asInt": "28032",
+                    "attributes": [
+                      { "key": "type", "value": { "stringValue": "cacheRead" } },
+                      { "key": "model", "value": { "stringValue": "claude-sonnet-4-5" } }
+                    ]
+                  },
+                  {
+                    "timeUnixNano": "1700000000000000000",
+                    "asInt": "11",
+                    "attributes": [
+                      { "key": "type", "value": { "stringValue": "output" } },
+                      { "key": "model", "value": { "stringValue": "claude-sonnet-4-5" } }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

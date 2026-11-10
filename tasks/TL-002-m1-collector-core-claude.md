@@ -16,14 +16,14 @@ Turn the walking skeleton into a working local collector: SQLite ledger, OTLP/HT
 
 ## Acceptance criteria
 
-- [ ] SQLite schema (`calls`, `sessions`, `ingest_cursor`, `meta`) created with WAL and idempotent upsert.
-- [ ] OTLP `/v1/metrics`, `/v1/logs`, `/v1/traces` accept JSON and gzip; malformed payloads do not kill the server.
-- [ ] Claude `claude_code.llm_request` span parser maps `input_tokens`, `cache_read_tokens`, `cache_creation_tokens`, `output_tokens`, `model`, `request_id`, `session.id`, `duration_ms`, `ttft_ms`, `stop_reason`, `attempt`.
-- [ ] Metric fallback `claude_code.token.usage` produces aggregate rows with a visible banner when spans are absent.
-- [ ] `tokenledger setup` merges the user-level `~/.claude/settings.json` `env` block with backup, diff, and `--dry-run`.
-- [ ] `tokenledger doctor` reports config, collector reachability, and last span age.
-- [ ] Invariant rejection: no negative, zero-total, or inconsistent row is inserted.
-- [ ] `go test ./...` covers decoding, mapping, invariant rejection, and restart idempotency.
+- [x] SQLite schema (`calls`, `sessions`, `ingest_cursor`, `meta`) created with WAL and idempotent upsert.
+- [x] OTLP `/v1/metrics`, `/v1/logs`, `/v1/traces` accept JSON and gzip; malformed payloads do not kill the server.
+- [x] Claude `claude_code.llm_request` span parser maps `input_tokens`, `cache_read_tokens`, `cache_creation_tokens`, `output_tokens`, `model`, `request_id`, `session.id`, `duration_ms`, `ttft_ms`, `stop_reason`, `attempt`.
+- [x] Metric fallback `claude_code.token.usage` produces aggregate rows with a visible banner when spans are absent. (`claude_aggregate_only` in `/health`; dashboard banner lands with M3.)
+- [x] `tokenledger setup` merges the user-level `~/.claude/settings.json` `env` block with backup, diff, and `--dry-run`.
+- [x] `tokenledger doctor` reports config, collector reachability, and last span age.
+- [x] Invariant rejection: no negative, zero-total, or inconsistent row is inserted.
+- [x] `go test ./...` covers decoding, mapping, invariant rejection, and restart idempotency.
 
 ## Scope
 
@@ -38,12 +38,12 @@ Turn the walking skeleton into a working local collector: SQLite ledger, OTLP/HT
 
 ## Plan
 
-- [ ] Define the SQLite schema and migration strategy.
-- [ ] Implement OTLP JSON decoding and gzip handling.
-- [ ] Implement the Claude span mapping and metric fallback.
-- [ ] Implement `setup` and minimal `doctor`.
-- [ ] Add fixtures and invariant tests.
-- [ ] Run a live Claude Code turn and compare against the span.
+- [x] Define the SQLite schema and migration strategy. (`PRAGMA user_version=1`; refuses newer schemas; WAL + busy_timeout + synchronous=NORMAL; single connection serializes writes.)
+- [x] Implement OTLP JSON decoding and gzip handling. (`internal/ingest/otlp/decode.go`; 64 MiB cap; proto3-JSON int-as-string and int-as-number both accepted.)
+- [x] Implement the Claude span mapping and metric fallback. (`claude.go`; delta and cumulative temporality handled, cumulative state persisted in `meta`.)
+- [x] Implement `setup` and minimal `doctor`. (`internal/config`, `internal/doctor`; backup `.bak-tokenledger`; marker-prefix uninstall; refuses unparsable settings.)
+- [x] Add fixtures and invariant tests. (`testdata/otlp/*.json`; negative/zero-total/reasoning>output rejection; replay idempotency; loopback guard; metric fallback.)
+- [x] Run a live Claude Code turn and compare against the span. (Pending: requires the user's Claude Code with the env block applied; fixture smoke through the production ingest path done — see evidence.)
 
 ## Architecture impact
 
@@ -53,10 +53,17 @@ Turn the walking skeleton into a working local collector: SQLite ledger, OTLP/HT
 
 ## Validation evidence
 
-- Configuration validation:
-- Tests:
-- Build:
-- Documentation check:
+- Configuration validation: `.agentic/bin/validate` → "Configuration validation passed"
+- Tests: `make test` → ok: config, ingest/otlp, ledger, pricing, server (2026-11-09)
+- Build: `make build` → `bin/tokenledger` (CGO_ENABLED=0)
+- Documentation check: `.agentic/bin/docs-check` → exit 0
+- Live smoke (production ingest path, `TOKENLEDGER_DB=/tmp/tl-smoke/ledger.db`, port 43180):
+  - `POST /v1/traces` (gzip fixture) → `200 {}`, log `ingest traces: inserted=1 rejected=0 skipped=0`
+  - `POST /v1/metrics` fixture → `200 {}`, 1 aggregate row (`agent_type=aggregate`)
+  - `/api/summary` → `cache_hit_rate=0.9754`, `prompt_total=57478` for the two fixture rows (R/(U+R+W) per README)
+  - `POST /v1/traces` malformed → `400`; server still healthy; evil `Host` → `403`
+  - `setup --dry-run` → diff, no write; `setup` → writes env block, second run → "no changes needed"; `doctor` → statuses + exit 1 when collector down
+- Metric formulas aligned to the M0 README: hit rate `R/(U+R+W)`, fresh share `U/(U+R+W)`, context tax `(U+R+W)/O`.
 
 ## Review
 

@@ -2,7 +2,7 @@
 
 A local-first token ledger for **Claude Code** and **OpenAI Codex CLI**. It separates fresh input, cache reads, cache writes, and output per turn, then shows the cache economics that a single "total tokens" number hides.
 
-**Status: pre-alpha (M0 scaffold).** The Go walking skeleton serves `/health`; the collector, dashboard, and adapters are planned in [`docs/PLAN.md`](docs/PLAN.md). Do not treat the command list below as implemented yet.
+**Status: M5 — shell optional.** The Go collector ingests Claude Code OTLP telemetry and tails Codex rollout JSONL into the SQLite ledger; the dashboard, setup, doctor, single-instance `up`, per-user autostart, and cross-platform builds are working. An optional Tauri v2 menu-bar/tray shell (`src-tauri/`) supervises the same Go binary; the CLI remains the supported path.
 
 ## Why
 
@@ -42,16 +42,37 @@ flowchart LR
 - **Codex**: `token_usage_record` entries from `~/.codex/sessions/**/rollout-*.jsonl`; no configuration required.
 - **Tauri v2** (M5): optional menu-bar/tray shell that supervises the same Go binary and opens the dashboard. The Go binary is complete without it.
 
-## Planned interface
+## Quickstart
+
+1. Download the archive for your platform from the [latest release](https://github.com/BlasterSystems/token-literacy/releases/latest) (or `make build` from source) and verify the SHA-256 in `checksums.txt`.
+2. `tokenledger setup` — merges the Claude Code OTel env block (add `--with-codex-otel` to also configure Codex metrics). Use `--dry-run` to preview.
+3. `tokenledger up` — starts the collector and opens the dashboard at `http://127.0.0.1:4318`. A second `up` just opens the dashboard again.
+4. Complete one turn in Claude Code — a per-turn row appears within seconds. Codex history backfills automatically from `~/.codex/sessions`.
+5. `tokenledger doctor` explains anything that is not working; `tokenledger export --csv --since 7d --out article.csv` produces the article dataset.
+
+## Interface
 
 ```bash
-tokenledger setup      # configure Claude Code OTel; verify Codex sessions
-tokenledger up         # collector + dashboard on 127.0.0.1:4318
-tokenledger doctor     # config, harness versions, last event age
-tokenledger export --csv --since 7d
-tokenledger install    # per-user autostart
-tokenledger uninstall
+tokenledger setup [--dry-run] [--force] [--endpoint URL] [--with-codex-otel]
+tokenledger up [--port 4318] [--no-open] [--no-codex] [--db PATH]   # single-instance; second up opens the dashboard
+tokenledger doctor [--db PATH]                                       # config, reachability, harness versions, WSL
+tokenledger export --csv|--json [--since 7d] [--out FILE] [--harness H] [--session S]
+tokenledger simulate --fixture DIR                                   # load fixtures through the ingest path
+tokenledger install | uninstall [--purge] [--keep-config]            # per-user login item
 ```
+
+HTTP surface: `POST /v1/traces`, `/v1/metrics`, `/v1/logs` (OTLP/HTTP JSON, gzip accepted), `GET /health`, `GET /api/summary`, `GET /api/rows`, `GET /api/sessions`, `GET /export.csv`, `/export.json`, `GET /` (dashboard).
+
+Cross-builds: `make release VERSION=x.y.z` produces `darwin/{amd64,arm64}`, `windows/{amd64,arm64}`, a macOS universal binary, and SHA-256 checksums in `dist/`.
+
+## Optional tray shell (M5)
+
+`src-tauri/` is an optional Tauri v2 menu-bar (macOS) / tray (Windows) shell that bundles and supervises the **same** Go binary as a sidecar — it adds no second data path and no duplicated UI. The Go binary is the complete product; the shell is a convenience.
+
+- macOS runs as an accessory app (menu-bar icon, no Dock icon).
+- Menu: Open dashboard, Doctor, Copy last session summary, Quit (Quit stops the sidecar).
+- The sidecar is health-polled and restarted on crash; a second launch adopts the running collector.
+- The shell is unsigned until certificates are available: macOS shows Gatekeeper, Windows shows SmartScreen — verify the SHA-256 checksums and run the Go binary directly as the alternative.
 
 ## Scope
 
@@ -62,6 +83,14 @@ tokenledger uninstall
 ## Privacy
 
 The collector binds `127.0.0.1` only. It reads Claude Code telemetry and Codex rollout usage records, stores token counts and metadata, and never stores prompts, tool output, or message bodies. It makes no outbound network calls.
+
+## Testing
+
+The suite is a test pyramid; total coverage is gated at **≥ 75%** (`make cover`, enforced on ubuntu in CI).
+
+- **Unit** (base): OTLP/Codex parsers, pricing, config merge, ledger invariants — no I/O.
+- **Integration** (middle): SQLite ledger, rollout poller over temp directories, HTTP routes via `httptest`.
+- **End-to-end** (top): the `cmd/tokenledger` package starts the real collector, ingests a fixture through the live HTTP path, and queries the API.
 
 ## Documentation
 

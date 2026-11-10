@@ -30,7 +30,41 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test ./...
+        run: go test ./... -count=1
+
+      # Coverage gate (single OS is enough; the pyramid itself runs everywhere).
+      - name: Coverage gate (>=75%)
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          go test ./... -count=1 -coverprofile=coverage.out -covermode=atomic
+          go tool cover -func=coverage.out | tee coverage.txt | tail -1
+          awk '/^total:/ { gsub("%", "", $3); if ($3 + 0 < 75) { print "FAIL: total coverage " $3 "% is below 75%"; exit 1 } }' coverage.txt
 
       - name: Build
         run: go build ./...
+
+  cross-build:
+    name: cross-build (4 targets)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Build release artifacts
+        run: scripts/build-release.sh 0.0.0-ci
+
+      - name: Verify checksums
+        working-directory: dist
+        run: |
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum -c checksums.txt
+          else
+            shasum -a 256 -c checksums.txt
+          fi
