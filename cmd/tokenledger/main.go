@@ -3,9 +3,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,8 +15,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/BlasterSystems/token-literacy/internal/config"
 	"github.com/BlasterSystems/token-literacy/internal/doctor"
+	"github.com/BlasterSystems/token-literacy/internal/ingest/codex"
+	"github.com/BlasterSystems/token-literacy/internal/config"
 	"github.com/BlasterSystems/token-literacy/internal/ledger"
 	"github.com/BlasterSystems/token-literacy/internal/pricing"
 	"github.com/BlasterSystems/token-literacy/internal/server"
@@ -74,65 +77,117 @@ func defaultDBPath() string {
 	return filepath.Join(home, ".tokenledger", "ledger.db")
 }
 
-func cmdServe(args []string) error {
-	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
-	port := fs.Int("port", 0, "port to bind on 127.0.0.1")
-	dbPath := fs.String("db", defaultDBPath(), "ledger database path")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-
-	addr := os.Getenv("TOKENLEDGER_ADDR")
-	if addr == "" {
-		addr = defaultAddr
-	}
-	if *port != 0 {
-		addr = fmt.Sprintf("127.0.0.1:%d", *port)
-	}
-
-	db, err := ledger.Open(*dbPath)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	override, err := pricing.LoadOverride(overridePath())
-	if err != nil {
-		return err
-	}
-
-	handler := server.New(server.Info{
-		Version: version,
-		Started: time.Now(),
-		DBPath:  *dbPath,
-	}, db, override)
-
-	srv := &http.Server{
-		Addr:              addr,
-		Handler:           handler,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
-	log.Printf("tokenledger %s listening on http://%s (db: %s)", version, addr, *dbPath)
-	errCh := make(chan error, 1)
-	go func() { errCh <- srv.ListenAndServe() }()
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
-	select {
-	case err := <-errCh:
-		return err
-	case <-sig:
-		return srv.Close()
-	}
-}
-
 func overridePath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
 	}
 	return filepath.Join(home, ".tokenledger", "pricing.json")
+}
+
+// running is a started collector; stop shuts it down.
+type running struct {
+	httpSrv      *http.Server
+	db           *ledger.DB
+	cancelPoller context.CancelFunc
+	Addr         string
+}
+
+// startServe opens the ledger, starts the Codex tailer, and begins serving
+// on 127.0.0.1 (port 0 picks a free port). The caller owns stop().
+func startServe(port int, dbPath, codexDir string, noCodex bool) (*running, error) {
+	db, err := ledger.Open(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	r := &running{db: db}
+
+	override, err := pricing.LoadOverride(overridePath())
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	if !noCodex {
+		dir := codexDir
+		if dir == "" {
+			dir, _ = codex.SessionsDir()
+		}
+		if dir != "" {
+			poller := &codex.Poller{DB: db, Dir: dir, Override: override, Logf: log.Printf, Warnf: log.Printf}
+			var pollerCtx context.Context
+			pollerCtx, r.cancelPoller = context.WithCancel(context.Background())
+			go poller.Run(pollerCtx)
+			log.Printf("codex tailer watching %s", dir)
+		}
+	}
+
+	handler := server.New(server.Info{
+		Version: version,
+		Started: time.Now(),
+		DBPath:  dbPath,
+	}, db, override)
+
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		r.stop()
+		return nil, err
+	}
+	r.Addr = ln.Addr().String()
+	r.httpSrv = &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second}
+	go func() { _ = r.httpSrv.Serve(ln) }()
+	log.Printf("tokenledger %s listening on http://%s (db: %s)", version, r.Addr, dbPath)
+	return r, nil
+}
+
+// stop shuts the collector down.
+func (r *running) stop() error {
+	if r.cancelPoller != nil {
+		r.cancelPoller()
+	}
+	var err error
+	if r.httpSrv != nil {
+		err = r.httpSrv.Close()
+	}
+	if r.db != nil {
+		if dbErr := r.db.Close(); dbErr != nil && err == nil {
+			err = dbErr
+		}
+	}
+	return err
+}
+
+func cmdServe(args []string) error {
+	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	port := fs.Int("port", 4318, "port to bind on 127.0.0.1")
+	dbPath := fs.String("db", defaultDBPath(), "ledger database path")
+	codexDir := fs.String("codex-dir", "", "Codex sessions directory (default: $CODEX_HOME/sessions or ~/.codex/sessions)")
+	noCodex := fs.Bool("no-codex", false, "disable the Codex rollout poller")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if env := os.Getenv("TOKENLEDGER_ADDR"); env != "" && *port == 4318 {
+		if p, err := parsePort(env); err == nil {
+			*port = p
+		}
+	}
+
+	r, err := startServe(*port, *dbPath, *codexDir, *noCodex)
+	if err != nil {
+		return err
+	}
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	<-sig
+	return r.stop()
+}
+
+func parsePort(addr string) (int, error) {
+	var port int
+	_, err := fmt.Sscanf(addr, "127.0.0.1:%d", &port)
+	return port, err
 }
 
 func cmdSetup(args []string) error {
@@ -180,27 +235,33 @@ func cmdSetup(args []string) error {
 }
 
 func cmdDoctor(args []string) error {
-	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
-	dbPath := fs.String("db", defaultDBPath(), "ledger database path")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-
-	home, err := os.UserHomeDir()
+	report, err := runDoctor(args)
 	if err != nil {
 		return err
 	}
-	report := doctor.Run(doctor.Inputs{
-		DBPath:          *dbPath,
-		ClaudeSettings:  config.ClaudeSettingsPath(home, ""),
-		ExpectedClaude:  config.ClaudeEnvBlock("http://" + defaultAddr),
-		CollectorURL:    "http://" + defaultAddr + "/health",
-		OverridePath:    overridePath(),
-		HTTPClient:      &http.Client{Timeout: 3 * time.Second},
-	})
 	report.Render(os.Stdout)
 	if report.Failures() > 0 {
 		os.Exit(1)
 	}
 	return nil
+}
+
+func runDoctor(args []string) (doctor.Report, error) {
+	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
+	dbPath := fs.String("db", defaultDBPath(), "ledger database path")
+	if err := fs.Parse(args); err != nil {
+		return doctor.Report{}, err
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return doctor.Report{}, err
+	}
+	return doctor.Run(doctor.Inputs{
+		DBPath:         *dbPath,
+		ClaudeSettings: config.ClaudeSettingsPath(home, ""),
+		ExpectedClaude: config.ClaudeEnvBlock("http://" + defaultAddr),
+		CollectorURL:   "http://" + defaultAddr + "/health",
+		OverridePath:   overridePath(),
+		HTTPClient:     &http.Client{Timeout: 3 * time.Second},
+	}), nil
 }

@@ -189,11 +189,6 @@ func (d *DB) migrate() error {
 // Close closes the database.
 func (d *DB) Close() error { return d.db.Close() }
 
-// Path is reserved for doctor reporting; the opener records the path in meta.
-func (d *DB) Path() (string, error) {
-	return d.GetMeta("db_path")
-}
-
 var ErrInvalidCall = errors.New("call rejected by invariant")
 
 // InsertCall validates and idempotently inserts one row. It returns

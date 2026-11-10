@@ -2,7 +2,7 @@
 
 A local-first token ledger for **Claude Code** and **OpenAI Codex CLI**. It separates fresh input, cache reads, cache writes, and output per turn, then shows the cache economics that a single "total tokens" number hides.
 
-**Status: M1 collector live.** The Go collector ingests Claude Code OTLP telemetry into the SQLite ledger, with `setup`, `doctor`, and query APIs working. Codex rollout adapter (M2), dashboard charts (M3), and packaging (M4+) are planned in [`docs/PLAN.md`](docs/PLAN.md).
+**Status: M2 adapters live.** The Go collector ingests Claude Code OTLP telemetry and tails Codex rollout JSONL into the SQLite ledger, with `setup`, `doctor`, and query APIs working. Dashboard charts (M3) and packaging (M4+) are planned in [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Why
 
@@ -63,6 +63,14 @@ HTTP surface: `POST /v1/traces`, `/v1/metrics`, `/v1/logs` (OTLP/HTTP JSON, gzip
 ## Privacy
 
 The collector binds `127.0.0.1` only. It reads Claude Code telemetry and Codex rollout usage records, stores token counts and metadata, and never stores prompts, tool output, or message bodies. It makes no outbound network calls.
+
+## Testing
+
+The suite is a test pyramid; total coverage is gated at **≥ 75%** (`make cover`, enforced on ubuntu in CI).
+
+- **Unit** (base): OTLP/Codex parsers, pricing, config merge, ledger invariants — no I/O.
+- **Integration** (middle): SQLite ledger, rollout poller over temp directories, HTTP routes via `httptest`.
+- **End-to-end** (top): the `cmd/tokenledger` package starts the real collector, ingests a fixture through the live HTTP path, and queries the API.
 
 ## Documentation
 

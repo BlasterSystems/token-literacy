@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/BlasterSystems/token-literacy/internal/ledger"
@@ -66,13 +67,19 @@ func queryFilter(r *http.Request) ledger.RowsFilter {
 	}
 }
 
-// parseSince accepts plain epoch-ms, RFC3339, or a relative duration (7d, 12h).
+// parseSince accepts plain epoch-ms, a relative duration (7d, 12h; Go
+// durations do not support days so Nd is handled here), or RFC3339.
 func parseSince(s string) int64 {
 	if s == "" {
 		return 0
 	}
 	if n, err := strconv.ParseInt(s, 10, 64); err == nil {
 		return n
+	}
+	if strings.HasSuffix(s, "d") {
+		if n, err := strconv.Atoi(strings.TrimSuffix(s, "d")); err == nil && n > 0 {
+			return time.Now().Add(-time.Duration(n) * 24 * time.Hour).UnixMilli()
+		}
 	}
 	if d, err := time.ParseDuration(s); err == nil {
 		return time.Now().Add(-d).UnixMilli()

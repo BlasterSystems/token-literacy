@@ -30,7 +30,16 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test ./...
+        run: go test ./... -count=1
+
+      # Coverage gate (single OS is enough; the pyramid itself runs everywhere).
+      - name: Coverage gate (>=75%)
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          go test ./... -count=1 -coverprofile=coverage.out -covermode=atomic
+          go tool cover -func=coverage.out | tee coverage.txt | tail -1
+          awk '/^total:/ { gsub("%", "", $3); if ($3 + 0 < 75) { print "FAIL: total coverage " $3 "% is below 75%"; exit 1 } }' coverage.txt
 
       - name: Build
         run: go build ./...
