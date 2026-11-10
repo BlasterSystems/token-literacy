@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/BlasterSystems/token-literacy/internal/ledger"
@@ -58,36 +57,13 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 func queryFilter(r *http.Request) ledger.RowsFilter {
 	q := r.URL.Query()
 	return ledger.RowsFilter{
-		SinceMS: parseSince(q.Get("since")),
+		SinceMS: ledger.ParseSince(q.Get("since")),
 		Harness: q.Get("harness"),
 		Session: q.Get("session"),
 		Limit:   atoiDefault(q.Get("limit"), 0),
 		Offset:  atoiDefault(q.Get("offset"), 0),
 		Asc:     q.Get("order") == "asc",
 	}
-}
-
-// parseSince accepts plain epoch-ms, a relative duration (7d, 12h; Go
-// durations do not support days so Nd is handled here), or RFC3339.
-func parseSince(s string) int64 {
-	if s == "" {
-		return 0
-	}
-	if n, err := strconv.ParseInt(s, 10, 64); err == nil {
-		return n
-	}
-	if strings.HasSuffix(s, "d") {
-		if n, err := strconv.Atoi(strings.TrimSuffix(s, "d")); err == nil && n > 0 {
-			return time.Now().Add(-time.Duration(n) * 24 * time.Hour).UnixMilli()
-		}
-	}
-	if d, err := time.ParseDuration(s); err == nil {
-		return time.Now().Add(-d).UnixMilli()
-	}
-	if t, err := time.Parse(time.RFC3339, s); err == nil {
-		return t.UnixMilli()
-	}
-	return 0
 }
 
 func atoiDefault(s string, def int) int {
@@ -141,7 +117,7 @@ func (s *Server) handleRows(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	sessions, err := s.db.Sessions(parseSince(q.Get("since")), q.Get("harness"))
+	sessions, err := s.db.Sessions(ledger.ParseSince(q.Get("since")), q.Get("harness"))
 	if err != nil {
 		httpError(w, err)
 		return

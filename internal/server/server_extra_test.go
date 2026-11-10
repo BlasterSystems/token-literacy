@@ -81,7 +81,7 @@ func TestParseSince(t *testing.T) {
 		{"garbage", 0},
 	}
 	for _, tc := range cases {
-		got := parseSince(tc.in)
+		got := ledger.ParseSince(tc.in)
 		switch tc.in {
 		case "7d", "12h":
 			if abs(got-tc.want) > 5_000 {

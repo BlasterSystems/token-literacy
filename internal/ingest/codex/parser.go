@@ -56,7 +56,7 @@ type tokenCountInfo struct {
 }
 
 type tokenCountPayload struct {
-	Type string         `json:"type"`
+	Type string          `json:"type"`
 	Info *tokenCountInfo `json:"info"`
 }
 
@@ -220,14 +220,14 @@ func (p *parser) toCall(u *tokenUsage, id, requestID string, l line, agentID str
 // rawMetadata trims the record to usage metadata; never prompts or content.
 func rawMetadata(id, requestID string, l line, u *tokenUsage) string {
 	raw := map[string]any{
-		"type":       "token_usage_record",
-		"ordinal":    l.Ordinal,
-		"input":      u.InputTokens,
-		"cached":     u.CachedInputTokens,
+		"type":        "token_usage_record",
+		"ordinal":     l.Ordinal,
+		"input":       u.InputTokens,
+		"cached":      u.CachedInputTokens,
 		"cache_write": u.CacheWriteInputTokens,
-		"output":     u.OutputTokens,
-		"reasoning":  u.ReasoningOutputTokens,
-		"total":      u.TotalTokens,
+		"output":      u.OutputTokens,
+		"reasoning":   u.ReasoningOutputTokens,
+		"total":       u.TotalTokens,
 	}
 	if requestID != "" {
 		raw["response_id"] = requestID

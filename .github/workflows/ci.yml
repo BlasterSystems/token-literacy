@@ -43,3 +43,27 @@ jobs:
 
       - name: Build
         run: go build ./...
+
+  cross-build:
+    name: cross-build (4 targets)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Build release artifacts
+        run: scripts/build-release.sh 0.0.0-ci
+
+      - name: Verify checksums
+        run: |
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum -c dist/tokenledger-0.0.0-ci.sha256
+          else
+            shasum -a 256 -c dist/tokenledger-0.0.0-ci.sha256
+          fi

@@ -269,9 +269,9 @@ type scopeMetrics struct {
 }
 
 type metric struct {
-	Name   string  `json:"name"`
-	Gauge  *gauge  `json:"gauge"`
-	Sum    *sum    `json:"sum"`
+	Name  string `json:"name"`
+	Gauge *gauge `json:"gauge"`
+	Sum   *sum   `json:"sum"`
 }
 
 type gauge struct {

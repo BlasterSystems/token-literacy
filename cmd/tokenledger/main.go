@@ -7,15 +7,19 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
+	"github.com/BlasterSystems/token-literacy/internal/autostart"
 	"github.com/BlasterSystems/token-literacy/internal/config"
 	"github.com/BlasterSystems/token-literacy/internal/doctor"
 	"github.com/BlasterSystems/token-literacy/internal/ingest/codex"
@@ -23,6 +27,7 @@ import (
 	"github.com/BlasterSystems/token-literacy/internal/pricing"
 	"github.com/BlasterSystems/token-literacy/internal/server"
 	"github.com/BlasterSystems/token-literacy/internal/simulate"
+	"github.com/BlasterSystems/token-literacy/internal/singleinstance"
 )
 
 var version = "0.1.0-dev"
@@ -46,6 +51,12 @@ func main() {
 		err = cmdDoctor(os.Args[2:])
 	case "simulate":
 		err = cmdSimulate(os.Args[2:])
+	case "export":
+		err = cmdExport(os.Args[2:])
+	case "install":
+		err = cmdInstall(os.Args[2:])
+	case "uninstall":
+		err = cmdUninstall(os.Args[2:])
 	case "help", "--help", "-h":
 		usage()
 	default:
@@ -62,12 +73,15 @@ func usage() {
 	fmt.Fprint(os.Stderr, `usage: tokenledger <command>
 
 commands:
-  serve     start the local collector and dashboard (alias: up)
-  setup     merge the Claude Code OTel env block into ~/.claude/settings.json
-  doctor    explain the current installation state
-  simulate  load fixture files through the production ingest path
-  version   print the version
-  help      print this message
+  serve      start the local collector and dashboard (alias: up)
+  setup      merge the Claude Code OTel env block into ~/.claude/settings.json
+  doctor     explain the current installation state
+  simulate   load fixture files through the production ingest path
+  export     write the ledger to CSV or JSON
+  install    register the per-user login item (autostart)
+  uninstall  remove the login item and config markers (--purge deletes data)
+  version    print the version
+  help       print this message
 `)
 }
 
@@ -83,11 +97,31 @@ func defaultDBPath() string {
 }
 
 func overridePath() string {
+	return filepath.Join(tokenledgerDir(), "pricing.json")
+}
+
+// tokenledgerDir is the per-user data directory (~/.tokenledger).
+func tokenledgerDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ""
+		return ".tokenledger"
 	}
-	return filepath.Join(home, ".tokenledger", "pricing.json")
+	return filepath.Join(home, ".tokenledger")
+}
+
+// lockPath is the single-instance pid lock file.
+func lockPath() string { return filepath.Join(tokenledgerDir(), "tokenledger.lock") }
+
+// openBrowser opens the default browser at url (best effort).
+func openBrowser(url string) error {
+	switch runtime.GOOS {
+	case "darwin":
+		return exec.Command("open", url).Start()
+	case "windows":
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	default:
+		return exec.Command("xdg-open", url).Start()
+	}
 }
 
 // running is a started collector; stop shuts it down.
@@ -181,6 +215,7 @@ func cmdServe(args []string) error {
 	dbPath := fs.String("db", defaultDBPath(), "ledger database path")
 	codexDir := fs.String("codex-dir", "", "Codex sessions directory (default: $CODEX_HOME/sessions or ~/.codex/sessions)")
 	noCodex := fs.Bool("no-codex", false, "disable the Codex rollout poller")
+	noOpen := fs.Bool("no-open", false, "do not open the dashboard in a browser")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -190,9 +225,26 @@ func cmdServe(args []string) error {
 		}
 	}
 
+	// Single-instance guard: a second `up` opens the existing dashboard and exits.
+	lock, holder, err := singleinstance.Acquire(lockPath())
+	if err != nil {
+		return err
+	}
+	defer lock.Release()
+	if lock == nil {
+		url := fmt.Sprintf("http://127.0.0.1:%d/", *port)
+		if !*noOpen {
+			_ = openBrowser(url)
+		}
+		return fmt.Errorf("collector already running (pid %d); dashboard at %s", holder, url)
+	}
+
 	r, err := startServe(*port, *dbPath, *codexDir, *noCodex)
 	if err != nil {
 		return err
+	}
+	if !*noOpen {
+		_ = openBrowser("http://" + r.Addr + "/")
 	}
 
 	sig := make(chan os.Signal, 1)
@@ -234,6 +286,7 @@ func cmdSetup(args []string) error {
 	dryRun := fs.Bool("dry-run", false, "show what would change without writing")
 	force := fs.Bool("force", false, "rewrite the env block even when unchanged (and prune stale marker keys)")
 	endpoint := fs.String("endpoint", "http://"+defaultAddr, "collector OTLP endpoint to configure")
+	withCodex := fs.Bool("with-codex-otel", false, "also write the Codex otel metrics block to ~/.codex/config.toml")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -262,13 +315,35 @@ func cmdSetup(args []string) error {
 	}
 	if len(res.Diff) == 0 {
 		fmt.Fprintln(out, "no changes needed")
-		return nil
-	}
-	for _, line := range res.Diff {
-		fmt.Fprintf(out, "  %s\n", line)
+	} else {
+		for _, line := range res.Diff {
+			fmt.Fprintf(out, "  %s\n", line)
+		}
 	}
 	if res.DryRun && res.Changed {
 		fmt.Fprintln(out, "(dry run: nothing written)")
+	}
+
+	if *withCodex {
+		cres, err := config.ApplyCodexOtelSetup(config.CodexConfigPath(home, ""), *endpoint, *dryRun)
+		if err != nil {
+			return err
+		}
+		if cres.DryRun {
+			fmt.Fprintf(out, "dry run for %s:\n", cres.Path)
+		} else {
+			fmt.Fprintf(out, "wrote %s\n", cres.Path)
+		}
+		if cres.Backup != "" {
+			fmt.Fprintf(out, "backup: %s\n", cres.Backup)
+		}
+		if len(cres.Diff) == 0 {
+			fmt.Fprintln(out, "no changes needed")
+		} else {
+			for _, line := range cres.Diff {
+				fmt.Fprintf(out, "  %s\n", line)
+			}
+		}
 	}
 	return nil
 }
@@ -281,6 +356,118 @@ func cmdDoctor(args []string) error {
 	report.Render(os.Stdout)
 	if report.Failures() > 0 {
 		os.Exit(1)
+	}
+	return nil
+}
+
+func cmdExport(args []string) error {
+	fs := flag.NewFlagSet("export", flag.ContinueOnError)
+	asCSV := fs.Bool("csv", false, "export CSV (default)")
+	asJSON := fs.Bool("json", false, "export JSON")
+	since := fs.String("since", "", "lower bound: epoch-ms, 7d, 12h, or RFC3339")
+	out := fs.String("out", "", "output file (default stdout)")
+	harness := fs.String("harness", "", "filter by harness")
+	session := fs.String("session", "", "filter by session id")
+	dbPath := fs.String("db", defaultDBPath(), "ledger database path")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *asJSON == *asCSV {
+		return fmt.Errorf("choose exactly one of --csv or --json")
+	}
+	if _, err := os.Stat(*dbPath); err != nil {
+		return fmt.Errorf("no ledger at %s yet (start tokenledger up)", *dbPath)
+	}
+	db, err := ledger.Open(*dbPath)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	rows, err := db.Rows(ledger.RowsFilter{
+		SinceMS: ledger.ParseSince(*since),
+		Harness: *harness,
+		Session: *session,
+		Asc:     true,
+	})
+	if err != nil {
+		return err
+	}
+
+	var w io.Writer = os.Stdout
+	if *out != "" {
+		f, err := os.Create(*out)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		w = f
+	}
+	if *asJSON {
+		return ledger.WriteJSON(w, rows)
+	}
+	return ledger.WriteCSV(w, rows)
+}
+
+func cmdInstall(args []string) error {
+	fs := flag.NewFlagSet("install", flag.ContinueOnError)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	exe, err = filepath.Abs(exe)
+	if err != nil {
+		return err
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	path, err := autostart.Install(exe, home)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("installed per-user login item: %s\n", path)
+	return nil
+}
+
+func cmdUninstall(args []string) error {
+	fs := flag.NewFlagSet("uninstall", flag.ContinueOnError)
+	purge := fs.Bool("purge", false, "delete ~/.tokenledger data (ledger database and logs)")
+	keepConfig := fs.Bool("keep-config", false, "leave harness config markers in place")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	path, err := autostart.Uninstall(home)
+	if err != nil {
+		return err
+	}
+	if path != "" {
+		fmt.Printf("removed login item: %s\n", path)
+	}
+	if !*keepConfig {
+		// Remove the setup markers (backups are written first).
+		if changed, err := config.UninstallClaudeSetup(config.ClaudeSettingsPath(home, "")); err == nil && changed {
+			fmt.Println("removed Claude Code OTel env block (backup written)")
+		}
+		if changed, err := config.UninstallCodexOtelSetup(config.CodexConfigPath(home, "")); err == nil && changed {
+			fmt.Println("removed Codex otel block (backup written)")
+		}
+	}
+	if *purge {
+		dir := tokenledgerDir()
+		if err := os.RemoveAll(dir); err != nil {
+			return fmt.Errorf("purge %s: %w", dir, err)
+		}
+		fmt.Printf("purged %s\n", dir)
+	} else {
+		fmt.Printf("ledger kept at %s (use --purge to delete)\n", tokenledgerDir())
 	}
 	return nil
 }
@@ -322,12 +509,29 @@ func runDoctor(args []string) (doctor.Report, error) {
 	if err != nil {
 		return doctor.Report{}, err
 	}
-	return doctor.Run(doctor.Inputs{
+	report := doctor.Run(doctor.Inputs{
 		DBPath:         *dbPath,
 		ClaudeSettings: config.ClaudeSettingsPath(home, ""),
 		ExpectedClaude: config.ClaudeEnvBlock("http://" + defaultAddr),
 		CollectorURL:   "http://" + defaultAddr + "/health",
 		OverridePath:   overridePath(),
 		HTTPClient:     &http.Client{Timeout: 3 * time.Second},
-	}), nil
+		CodexDir:       codexDirOrDefault(""),
+		Port:           4318,
+		LockPath:       lockPath(),
+	})
+	report.Checks = append(report.Checks,
+		doctor.CheckHarnessVersion("claude"),
+		doctor.CheckHarnessVersion("codex"),
+	)
+	return report, nil
+}
+
+// codexDirOrDefault resolves the effective Codex sessions directory.
+func codexDirOrDefault(flagVal string) string {
+	if flagVal != "" {
+		return flagVal
+	}
+	dir, _ := codex.SessionsDir()
+	return dir
 }

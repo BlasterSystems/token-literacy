@@ -207,8 +207,8 @@ func MetricCalls(body []byte, state MetricState, override pricing.Override) ([]l
 					continue
 				}
 				type point struct {
-					dp     dataPoint
-					delta  bool
+					dp    dataPoint
+					delta bool
 				}
 				var points []point
 				if mt.Sum != nil {

@@ -128,7 +128,7 @@ func TestMetricCallsCumulative(t *testing.T) {
 						"name": "claude_code.token.usage",
 						"sum": map[string]any{
 							"aggregationTemporality": 1,
-							"dataPoints":            []map[string]any{dp("input", input), dp("output", output)},
+							"dataPoints":             []map[string]any{dp("input", input), dp("output", output)},
 						},
 					}},
 				}},

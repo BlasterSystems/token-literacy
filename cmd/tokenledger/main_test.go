@@ -82,6 +82,44 @@ func TestDefaultDBPathFromEnv(t *testing.T) {
 	}
 }
 
+func TestCmdSimulateFixture(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	dbPath := filepath.Join(dir, "ledger.db")
+	fixtureDir := t.TempDir()
+	copyPath := func(dst, src string) {
+		data, err := os.ReadFile(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(dst, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	copyPath(filepath.Join(fixtureDir, "span.json"), filepath.Join("..", "..", "testdata", "otlp", "llm_request_span.json"))
+	copyPath(filepath.Join(fixtureDir, "record.jsonl"), filepath.Join("..", "..", "testdata", "codex", "record.jsonl"))
+
+	if err := cmdSimulate([]string{"--fixture", fixtureDir, "--db", dbPath}); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmdSimulate([]string{"--db", dbPath}); err == nil {
+		t.Fatal("missing --fixture should error")
+	}
+}
+
+func TestCmdInstallUninstallFakeHome(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	// install would run launchctl load and fail outside a real session;
+	// uninstall must be safe and idempotent regardless.
+	if err := cmdUninstall([]string{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmdUninstall([]string{"--purge"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestStartServeIngestAndQuery(t *testing.T) {
 	home := fakeHome(t)
 	dbPath := filepath.Join(home, "ledger.db")

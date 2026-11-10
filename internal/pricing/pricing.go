@@ -16,10 +16,10 @@ import (
 
 // Price is a per-model rate table in USD per million tokens.
 type Price struct {
-	Input     float64 `json:"input"`
-	CacheRead float64 `json:"cache_read"`
+	Input      float64 `json:"input"`
+	CacheRead  float64 `json:"cache_read"`
 	CacheWrite float64 `json:"cache_write"`
-	Output    float64 `json:"output"`
+	Output     float64 `json:"output"`
 }
 
 type entry struct {

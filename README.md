@@ -2,7 +2,7 @@
 
 A local-first token ledger for **Claude Code** and **OpenAI Codex CLI**. It separates fresh input, cache reads, cache writes, and output per turn, then shows the cache economics that a single "total tokens" number hides.
 
-**Status: M2 adapters live.** The Go collector ingests Claude Code OTLP telemetry and tails Codex rollout JSONL into the SQLite ledger, with `setup`, `doctor`, and query APIs working. Dashboard charts (M3) and packaging (M4+) are planned in [`docs/PLAN.md`](docs/PLAN.md).
+**Status: M4 — installable.** The Go collector ingests Claude Code OTLP telemetry and tails Codex rollout JSONL into the SQLite ledger; the dashboard, setup, doctor, single-instance `up`, per-user autostart, and cross-platform builds are working. Tauri tray shell (M5) and the tagged release (M6) remain.
 
 ## Why
 
@@ -45,14 +45,17 @@ flowchart LR
 ## Interface
 
 ```bash
-tokenledger setup [--dry-run] [--force] [--endpoint URL]   # configure Claude Code OTel (implemented)
-tokenledger up [--port 4318] [--db PATH]                    # collector on 127.0.0.1 (implemented)
-tokenledger doctor                                          # installation diagnostics (implemented)
-tokenledger export --csv --since 7d                         # planned (M4)
-tokenledger install | uninstall                             # per-user autostart (planned, M4)
+tokenledger setup [--dry-run] [--force] [--endpoint URL] [--with-codex-otel]
+tokenledger up [--port 4318] [--no-open] [--no-codex] [--db PATH]   # single-instance; second up opens the dashboard
+tokenledger doctor [--db PATH]                                       # config, reachability, harness versions, WSL
+tokenledger export --csv|--json [--since 7d] [--out FILE] [--harness H] [--session S]
+tokenledger simulate --fixture DIR                                   # load fixtures through the ingest path
+tokenledger install | uninstall [--purge] [--keep-config]            # per-user login item
 ```
 
-HTTP surface: `POST /v1/traces`, `/v1/metrics`, `/v1/logs` (OTLP/HTTP JSON, gzip accepted), `GET /health`, `GET /api/summary`, `GET /api/rows`, `GET /api/sessions`. The dashboard (M3) and `/export.csv|json` land with M3.
+HTTP surface: `POST /v1/traces`, `/v1/metrics`, `/v1/logs` (OTLP/HTTP JSON, gzip accepted), `GET /health`, `GET /api/summary`, `GET /api/rows`, `GET /api/sessions`, `GET /export.csv`, `/export.json`, `GET /` (dashboard).
+
+Cross-builds: `make release VERSION=x.y.z` produces `darwin/{amd64,arm64}`, `windows/{amd64,arm64}`, a macOS universal binary, and SHA-256 checksums in `dist/`.
 
 ## Scope
 

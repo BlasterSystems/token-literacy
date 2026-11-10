@@ -33,7 +33,7 @@ type rowView struct {
 	Harness string
 	Model   string
 	U, R, W,
-	O          int64
+	O int64
 	HitPct string
 	Cost   string
 	Source string
@@ -41,11 +41,16 @@ type rowView struct {
 
 // dashboardTmpl renders the dashboard; no external assets are referenced.
 var dashboardTmpl = template.Must(template.New("dashboard").Funcs(template.FuncMap{
-	"pct":    func(f float64) string { return fmt.Sprintf("%.1f%%", f*100) },
-	"ratio":  func(f float64) string { return fmt.Sprintf("%.2f", f) },
-	"cost":   func(f float64) string { return fmt.Sprintf("$%.4f", f) },
-	"cost6":  func(f float64) string { return fmt.Sprintf("$%.6f", f) },
-	"sel":    func(v, cur string) string { if v == cur { return " selected" }; return "" },
+	"pct":   func(f float64) string { return fmt.Sprintf("%.1f%%", f*100) },
+	"ratio": func(f float64) string { return fmt.Sprintf("%.2f", f) },
+	"cost":  func(f float64) string { return fmt.Sprintf("$%.4f", f) },
+	"cost6": func(f float64) string { return fmt.Sprintf("$%.6f", f) },
+	"sel": func(v, cur string) string {
+		if v == cur {
+			return " selected"
+		}
+		return ""
+	},
 }).Parse(dashboardHTML))
 
 const dashboardHTML = `<!doctype html>

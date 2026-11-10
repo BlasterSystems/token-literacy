@@ -3,10 +3,12 @@ package doctor
 import (
 	"bytes"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -116,5 +118,74 @@ func TestRender(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, "ok") || !strings.Contains(out, "fail") || !strings.Contains(out, "ledger") {
 		t.Fatalf("render = %q", out)
+	}
+}
+
+func TestCodexDirChecks(t *testing.T) {
+	if c := checkCodexDir(t.TempDir()); c.Status != "ok" {
+		t.Fatalf("existing dir: %+v", c)
+	}
+	missing := filepath.Join(t.TempDir(), "nope")
+	if c := checkCodexDir(missing); c.Status != "fail" {
+		t.Fatalf("missing dir: %+v", c)
+	}
+	file := filepath.Join(t.TempDir(), "f")
+	os.WriteFile(file, []byte("x"), 0o600)
+	if c := checkCodexDir(file); c.Status != "fail" {
+		t.Fatalf("file dir: %+v", c)
+	}
+}
+
+func TestInstanceCheck(t *testing.T) {
+	dir := t.TempDir()
+	// No lock file: ok.
+	if c := checkInstance(filepath.Join(dir, "lock")); c.Status != "ok" {
+		t.Fatalf("no lock: %+v", c)
+	}
+	// Own live pid: warn.
+	lock := filepath.Join(dir, "lock")
+	os.WriteFile(lock, []byte(strconv.Itoa(os.Getpid())), 0o600)
+	if c := checkInstance(lock); c.Status != "warn" {
+		t.Fatalf("live lock: %+v", c)
+	}
+	// Stale pid: ok.
+	os.WriteFile(lock, []byte("999999"), 0o600)
+	if c := checkInstance(lock); c.Status != "ok" {
+		t.Fatalf("stale lock: %+v", c)
+	}
+}
+
+func TestPortCheck(t *testing.T) {
+	// Nothing listens on a high port: warn.
+	if c := checkPort(45999); c.Status != "warn" {
+		t.Fatalf("closed port: %+v", c)
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	port := ln.Addr().(*net.TCPAddr).Port
+	if c := checkPort(port); c.Status != "ok" {
+		t.Fatalf("open port: %+v", c)
+	}
+}
+
+func TestCheckHarnessVersionMissing(t *testing.T) {
+	if c := CheckHarnessVersion("definitely-not-a-binary-xyz"); c.Status != "warn" {
+		t.Fatalf("missing binary: %+v", c)
+	}
+}
+
+func TestRunIncludesWSLCheck(t *testing.T) {
+	r := Run(Inputs{})
+	var found bool
+	for _, c := range r.Checks {
+		if c.Name == "wsl" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("wsl check missing")
 	}
 }

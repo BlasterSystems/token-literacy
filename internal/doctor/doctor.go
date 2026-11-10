@@ -3,14 +3,19 @@
 package doctor
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/BlasterSystems/token-literacy/internal/ledger"
+	"github.com/BlasterSystems/token-literacy/internal/singleinstance"
 )
 
 // Inputs carries everything doctor needs; zero values skip checks.
@@ -21,6 +26,12 @@ type Inputs struct {
 	CollectorURL   string
 	OverridePath   string
 	HTTPClient     *http.Client
+	// CodexDir is checked for existence when non-empty.
+	CodexDir string
+	// Port is probed for a listener when non-empty (e.g. 4318).
+	Port int
+	// LockPath is the single-instance pid lock ("" skips the check).
+	LockPath string
 }
 
 // Check is one diagnostic line.
@@ -60,6 +71,16 @@ func Run(in Inputs) Report {
 	r.Checks = append(r.Checks, checkClaudeConfig(in.ClaudeSettings, in.ExpectedClaude))
 	r.Checks = append(r.Checks, checkCollector(in.CollectorURL, in.HTTPClient))
 	r.Checks = append(r.Checks, checkPricingOverride(in.OverridePath))
+	if in.CodexDir != "" {
+		r.Checks = append(r.Checks, checkCodexDir(in.CodexDir))
+	}
+	if in.LockPath != "" {
+		r.Checks = append(r.Checks, checkInstance(in.LockPath))
+	}
+	if in.Port != 0 {
+		r.Checks = append(r.Checks, checkPort(in.Port))
+	}
+	r.Checks = append(r.Checks, checkWSL())
 	return r
 }
 
@@ -181,4 +202,58 @@ func checkPricingOverride(path string) Check {
 		return Check{Name: "pricing-override", Status: "fail", Detail: path + " is not valid JSON"}
 	}
 	return Check{Name: "pricing-override", Status: "ok", Detail: fmt.Sprintf("%s (%d entries)", path, len(m))}
+}
+
+func checkCodexDir(dir string) Check {
+	fi, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		return Check{Name: "codex-dir", Status: "fail", Detail: dir + " does not exist (no Codex sessions will be ingested)"}
+	}
+	if err != nil {
+		return Check{Name: "codex-dir", Status: "fail", Detail: err.Error()}
+	}
+	if !fi.IsDir() {
+		return Check{Name: "codex-dir", Status: "fail", Detail: dir + " is not a directory"}
+	}
+	return Check{Name: "codex-dir", Status: "ok", Detail: dir}
+}
+
+func checkInstance(lockPath string) Check {
+	pid, held := singleinstance.IsHeldByLiveProcess(lockPath)
+	if !held {
+		return Check{Name: "instance", Status: "ok", Detail: "no other collector running"}
+	}
+	return Check{Name: "instance", Status: "warn", Detail: fmt.Sprintf("another collector is running (pid %d)", pid)}
+}
+
+func checkPort(port int) Check {
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), time.Second)
+	if err != nil {
+		return Check{Name: "port", Status: "warn", Detail: fmt.Sprintf("nothing listening on 127.0.0.1:%d (start tokenledger up)", port)}
+	}
+	conn.Close()
+	return Check{Name: "port", Status: "ok", Detail: fmt.Sprintf("127.0.0.1:%d is accepting connections", port)}
+}
+
+func checkWSL() Check {
+	if !runningInWSL() {
+		return Check{Name: "wsl", Status: "ok", Detail: "not detected"}
+	}
+	return Check{Name: "wsl", Status: "warn", Detail: "WSL detected: if the browser runs on Windows, open http://127.0.0.1:4318 there and check the WSL host-IP/firewall"}
+}
+
+func runningInWSL() bool {
+	data, err := os.ReadFile("/proc/version")
+	return err == nil && strings.Contains(strings.ToLower(string(data)), "microsoft")
+}
+
+// CheckHarnessVersion runs a harness binary's --version (warns when absent).
+func CheckHarnessVersion(bin string) Check {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, bin, "--version").CombinedOutput()
+	if err != nil {
+		return Check{Name: bin + "-version", Status: "warn", Detail: fmt.Sprintf("%s not found in PATH (install it or ignore)", bin)}
+	}
+	return Check{Name: bin + "-version", Status: "ok", Detail: strings.TrimSpace(string(out))}
 }

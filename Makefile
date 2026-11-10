@@ -18,6 +18,9 @@ cover:
 	$(GO) tool cover -func=coverage.out | tee coverage.txt | tail -1
 	@awk '/^total:/ { gsub("%", "", $$3); if ($$3 + 0 < $(COVER_THRESHOLD)) { print "FAIL: total coverage " $$3 "% is below $(COVER_THRESHOLD)%"; exit 1 } }' coverage.txt
 
+release:
+	scripts/build-release.sh $(VERSION)
+
 run:
 	$(GO) run ./cmd/tokenledger serve
 
