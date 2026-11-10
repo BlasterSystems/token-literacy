@@ -2,6 +2,19 @@
 
 All notable changes to token-literacy are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Model pricing panel**: search the public OpenRouter catalog (no key) from the dashboard; picking a model caches its rates in SQLite (`model_rates`, schema v3) under the vendor-less model name so harness ids prefix-match, and editable fields let you correct or set rates by hand. Rate changes apply to the next turn without a restart; `~/.tokenledger/pricing.json` overrides still win on the same model prefix.
+- **Default API price**: models with no known list price are costed at Claude Opus 5.5 list rates ($4 / $0.20 / $5 / $20 per 1M in/read/write/out) and marked `cost_source=default_price` (`≈` prefix in the dashboard cost column) instead of `none`.
+- **DS v1.1 dashboard**: the dashboard now uses the BlasterSystems Design System v1.1 (oklch identity tokens, Fira Sans + DM Mono embedded — still no remote assets), with the product lockup, StatCards with computed InfoTips, ledger-line filters, width-aware charts (stacked bars with thread-outlined output, hit-rate line with peak annotation), and a system-plus-toggle theme remembered in localStorage.
+
+### Changed
+
+- Price lookup resolves the longest matching override prefix deterministically; previously several matching prefixes resolved by map order.
+- The tray shell opens the dashboard automatically once the collector is healthy on first launch, and the dashboard window is titled "TokL - Token Literacy".
+
 ## [0.1.0] — 2026-11-10
 
 First public release: a local-first token ledger for Claude Code and Codex with per-turn fresh vs cached input, output, and API-equivalent cost.

@@ -153,7 +153,20 @@ func startServe(port int, dbPath, codexDir string, noCodex bool) (*running, erro
 			dir, _ = codex.SessionsDir()
 		}
 		if dir != "" {
-			poller := &codex.Poller{DB: db, Dir: dir, Override: override, Logf: log.Printf, Warnf: log.Printf}
+			poller := &codex.Poller{
+				DB:   db,
+				Dir:  dir,
+				Logf: log.Printf, Warnf: log.Printf,
+				// Fresh DB-cached model rates per scan: pricing edits in
+				// the dashboard apply to the next turn without a restart.
+				RatesFn: func() pricing.Override {
+					rates, err := db.ModelRates()
+					if err != nil || len(rates) == 0 {
+						return override
+					}
+					return pricing.Merge(server.RatesOverride(rates), override)
+				},
+			}
 			var pollerCtx context.Context
 			pollerCtx, r.cancelPoller = context.WithCancel(context.Background())
 			go poller.Run(pollerCtx)

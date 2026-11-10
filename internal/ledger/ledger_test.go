@@ -217,3 +217,36 @@ func TestIntegrityAndCounts(t *testing.T) {
 		t.Fatal("last source time should be set")
 	}
 }
+
+func TestMigrateV2ToV3(t *testing.T) {
+	// Hand-build a v2 database (v1 tables + the ingest_cursor state column,
+	// no model_rates) and confirm Open migrates it to v3.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ledger.db")
+	raw, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer raw.Close()
+	_, err = raw.Exec(`CREATE TABLE calls (id TEXT PRIMARY KEY, harness TEXT NOT NULL, session_id TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS ingest_cursor (source TEXT PRIMARY KEY, inode INTEGER, offset INTEGER NOT NULL DEFAULT 0, state TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+PRAGMA user_version=2;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw.Close()
+
+	db, err := Open(path)
+	if err != nil {
+		t.Fatalf("open v2 db: %v", err)
+	}
+	defer db.Close()
+	if err := db.UpsertModelRate(ModelRate{Model: "gpt-6-luna", Input: 1.5, CacheRead: 0.15, Output: 6, Source: "openrouter", UpdatedAtMS: 1}); err != nil {
+		t.Fatalf("model_rates missing after migration: %v", err)
+	}
+	rates, err := db.ModelRates()
+	if err != nil || len(rates) != 1 || rates[0].Model != "gpt-6-luna" {
+		t.Fatalf("rates after migration = %+v, %v", rates, err)
+	}
+}

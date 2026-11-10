@@ -2,9 +2,11 @@
 //
 // Prices are USD per million tokens. Cache-write rates encode the effective
 // 5-minute prompt-cache premium (1.25x input for Anthropic); OpenAI does not
-// bill cache writes. Unknown models return ok=false and the row is stored
-// with cost_source=none. All figures are API list prices: subscription plans
-// are not billed per token, and the dashboard labels costs accordingly.
+// bill cache writes. Models with no known list price are priced at
+// DefaultPrice (Claude Opus 5.5) and marked cost_source=default_price; a
+// table or override match is cost_source=list_price. All figures are API
+// list prices: subscription plans are not billed per token, and the
+// dashboard labels costs accordingly.
 package pricing
 
 import (
@@ -30,6 +32,7 @@ type entry struct {
 // table is ordered longest-prefix first; the first match wins.
 var table = []entry{
 	// Anthropic (claude-<family>-<version>[-date])
+	{"claude-opus-5.5", Price{Input: 4, CacheRead: 0.2, CacheWrite: 5, Output: 20}},
 	{"claude-opus-4-5", Price{Input: 5, CacheRead: 0.5, CacheWrite: 6.25, Output: 25}},
 	{"claude-opus-4-1", Price{Input: 5, CacheRead: 0.5, CacheWrite: 6.25, Output: 25}},
 	{"claude-opus-4", Price{Input: 5, CacheRead: 0.5, CacheWrite: 6.25, Output: 25}},
@@ -83,14 +86,37 @@ func LoadOverride(path string) (Override, error) {
 	return o, nil
 }
 
+// Merge layers overrides; later layers win on identical keys. Lookup still
+// applies longest-prefix-first, so a more specific key in an earlier layer
+// beats a shorter one in a later layer.
+func Merge(layers ...Override) Override {
+	out := Override{}
+	for _, l := range layers {
+		for k, v := range l {
+			out[k] = v
+		}
+	}
+	return out
+}
+
 // Lookup returns the price for a model id. User overrides win over the
-// embedded table. ok=false means the model has no list price.
+// embedded table; the longest matching override prefix wins when several
+// match. ok=false means the model has no list price.
 func Lookup(model string, override Override) (Price, bool) {
 	m := strings.ToLower(model)
+	best := ""
+	var bestPrice Price
 	for prefix, p := range override {
-		if strings.HasPrefix(m, strings.ToLower(prefix)) {
-			return p, true
+		if prefix == "" {
+			continue
 		}
+		if strings.HasPrefix(m, strings.ToLower(prefix)) && len(prefix) > len(best) {
+			best = prefix
+			bestPrice = p
+		}
+	}
+	if best != "" {
+		return bestPrice, true
 	}
 	for _, e := range table {
 		if strings.HasPrefix(m, e.prefix) {
@@ -100,16 +126,35 @@ func Lookup(model string, override Override) (Price, bool) {
 	return Price{}, false
 }
 
-// Cost computes the API-equivalent cost in USD for one row.
-func Cost(model string, override Override, inputUncached, cacheRead, cacheWrite, output int64) (float64, bool) {
+// Cost source labels stored in ledger rows.
+const (
+	SourceListPrice   = "list_price"   // an embedded or override rate matched
+	SourceDefaultCost = "default_price" // no match: priced at the opus-5.5 default
+)
+
+// DefaultPrice is the fallback rate table for models with no known list
+// price: Claude Opus 5.5 list rates — a deliberately premium default so the
+// API-equivalent figure errs high rather than to zero.
+var DefaultPrice = Price{Input: 4, CacheRead: 0.2, CacheWrite: 5, Output: 20}
+
+// DefaultModel is the catalog id DefaultPrice comes from.
+const DefaultModel = "anthropic/claude-opus-5.5"
+
+// CostSourced computes the API-equivalent cost in USD for one row and reports
+// which rate table produced it ("list_price" or "default_price").
+func CostSourced(model string, override Override, inputUncached, cacheRead, cacheWrite, output int64) (float64, string) {
 	p, ok := Lookup(model, override)
 	if !ok {
-		return 0, false
+		p = DefaultPrice
+		return costAt(p, inputUncached, cacheRead, cacheWrite, output), SourceDefaultCost
 	}
+	return costAt(p, inputUncached, cacheRead, cacheWrite, output), SourceListPrice
+}
+
+func costAt(p Price, inputUncached, cacheRead, cacheWrite, output int64) float64 {
 	const mtok = 1_000_000.0
-	cost := float64(inputUncached)*p.Input/mtok +
+	return float64(inputUncached)*p.Input/mtok +
 		float64(cacheRead)*p.CacheRead/mtok +
 		float64(cacheWrite)*p.CacheWrite/mtok +
 		float64(output)*p.Output/mtok
-	return cost, true
 }

@@ -131,7 +131,7 @@ func TestTotalMismatchWarns(t *testing.T) {
 	}
 }
 
-func TestUnknownModelNoCost(t *testing.T) {
+func TestUnknownModelDefaultPrice(t *testing.T) {
 	body := []byte(`{"ordinal":0,"type":"session_meta","payload":{"session_id":"s1","cli_version":"0.166.0"}}
 {"ordinal":1,"type":"turn_context","payload":{"model":"mystery-model"}}
 {"ordinal":2,"type":"token_usage_record","payload":{"session_id":"s1","response_id":"r1","usage":{"input_tokens":100,"cached_input_tokens":50,"cache_write_input_tokens":0,"output_tokens":5,"reasoning_output_tokens":0,"total_tokens":105}}}`)
@@ -139,8 +139,13 @@ func TestUnknownModelNoCost(t *testing.T) {
 	if len(res.Calls) != 1 {
 		t.Fatalf("calls = %d", len(res.Calls))
 	}
-	if res.Calls[0].CostUSD != nil || res.Calls[0].CostSource != "none" {
-		t.Errorf("cost = %v / %s", res.Calls[0].CostUSD, res.Calls[0].CostSource)
+	// Unknown models are priced at the opus-5.5 default: U=50 R=50 O=5 →
+	// (50*4 + 50*0.2 + 5*20)/1e6 = 0.00031.
+	if res.Calls[0].CostUSD == nil || res.Calls[0].CostSource != "default_price" {
+		t.Fatalf("cost = %v / %s, want default_price", res.Calls[0].CostUSD, res.Calls[0].CostSource)
+	}
+	if *res.Calls[0].CostUSD != 0.00031 {
+		t.Errorf("default cost = %v, want 0.00031", *res.Calls[0].CostUSD)
 	}
 }
 

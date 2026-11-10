@@ -40,9 +40,10 @@ func TestDashboardRendersChartsAndTable(t *testing.T) {
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
-		"Total tokens", "Cache hit rate", "Fresh share", "Context tax",
-		"API-equiv. cost", "Cost / output token",
-		"<svg viewBox=", "<rect", "<polyline", "s-twenty",
+		"Tokens", "Cache hit rate", "Fresh share", "Context tax",
+		"API-equiv. cost", "Cost / output token", "Turns",
+		"TokL - Token Literacy", "A BlasterSystems product",
+		`id="bars"`, `id="rate"`, `"u":`, "s-twenty",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("dashboard missing %q", want)
@@ -162,37 +163,26 @@ func TestExportJSON(t *testing.T) {
 	}
 }
 
-func TestStackedBarsSVGShape(t *testing.T) {
+func TestChartRowsAscending(t *testing.T) {
 	rows := []ledger.Call{
-		{ID: "a", InputUncached: 10, CacheRead: 20, CacheWrite: 0, Output: 5, StartedAt: 100},
 		{ID: "b", InputUncached: 30, CacheRead: 40, CacheWrite: 10, Output: 15, StartedAt: 200},
+		{ID: "a", InputUncached: 10, CacheRead: 20, CacheWrite: 0, Output: 5, StartedAt: 100},
 	}
-	svg := stackedBarsSVG(rows)
-	if !strings.HasPrefix(svg, `<svg viewBox="0 0 `) {
-		t.Fatalf("svg = %s", svg[:60])
+	chart := chartRows(rows)
+	if len(chart) != 2 {
+		t.Fatalf("chart rows = %d", len(chart))
 	}
-	if strings.Count(svg, "<rect") != 7 { // 4+3 nonzero segments
-		t.Errorf("rects = %d, want 7", strings.Count(svg, "<rect"))
+	if chart[0].T != 100 || chart[1].T != 200 {
+		t.Fatalf("not ascending: %+v", chart)
 	}
-	if !strings.Contains(svg, "var(--c2)") {
-		t.Error("cache-read color missing")
+	if chart[1].U != 30 || chart[1].R != 40 || chart[1].W != 10 || chart[1].O != 15 {
+		t.Fatalf("token split wrong: %+v", chart[1])
 	}
-	empty := stackedBarsSVG(nil)
-	if !strings.Contains(empty, "no turns in range") {
-		t.Error("empty svg missing message")
+	// 40/(30+40+10) = 50%
+	if chart[1].Hit < 49.9 || chart[1].Hit > 50.1 {
+		t.Errorf("hit = %v, want 50", chart[1].Hit)
 	}
-}
-
-func TestRateLineSVGShape(t *testing.T) {
-	rows := []ledger.Call{
-		{ID: "a", InputUncached: 10, CacheRead: 30, Output: 5, StartedAt: 100},
-		{ID: "b", InputUncached: 30, CacheRead: 10, Output: 15, StartedAt: 200},
-	}
-	svg := rateLineSVG(rows)
-	if !strings.Contains(svg, "<polyline") {
-		t.Fatal("polyline missing")
-	}
-	if !strings.Contains(svg, "25%") || !strings.Contains(svg, "100%") {
-		t.Error("gridline labels missing")
+	if got := chartRows(nil); len(got) != 0 {
+		t.Errorf("empty rows should yield no chart points")
 	}
 }

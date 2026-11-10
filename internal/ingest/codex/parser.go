@@ -254,12 +254,9 @@ func (p *parser) toCall(u *tokenUsage, id, requestID string, l line, agentID, re
 	} else if agentID != "" && agentID != p.sessionID {
 		call.AgentID = &agentID
 	}
-	if cost, ok := pricing.Cost(p.model, p.override, call.InputUncached, call.CacheRead, call.CacheWrite, call.Output); ok {
-		call.CostUSD = &cost
-		call.CostSource = "list_price"
-	} else {
-		call.CostSource = "none"
-	}
+	cost, source := pricing.CostSourced(p.model, p.override, call.InputUncached, call.CacheRead, call.CacheWrite, call.Output)
+	call.CostUSD = &cost
+	call.CostSource = source
 	return call, true
 }
 

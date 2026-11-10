@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/BlasterSystems/token-literacy/internal/ledger"
+	"github.com/BlasterSystems/token-literacy/internal/pricing"
 )
 
 // guardDB returns 503 when the ledger is not open.
@@ -83,6 +84,11 @@ func (s *Server) handleSummary(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err)
 		return
 	}
+	estUSD, unpriced, usedDefault, err := s.costEstimate(queryFilter(r))
+	if err != nil {
+		httpError(w, err)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"calls":                 sum.Calls,
@@ -99,6 +105,9 @@ func (s *Server) handleSummary(w http.ResponseWriter, r *http.Request) {
 		"fresh_share":           sum.FreshShare(),
 		"context_tax":           sum.ContextTax(),
 		"cost_per_output_token": sum.CostPerOutputToken(),
+		"cost_estimate_usd":     estUSD,
+		"unpriced_calls":        unpriced,
+		"unpriced_used_default": usedDefault,
 	})
 }
 
@@ -133,4 +142,66 @@ func httpError(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusInternalServerError)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+}
+
+// handleRatesGet lists cached model rates plus the default price info.
+func (s *Server) handleRatesGet(w http.ResponseWriter, r *http.Request) {
+	rates, err := s.db.ModelRates()
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+	if rates == nil {
+		rates = []ledger.ModelRate{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"rates":   rates,
+		"default": map[string]any{"model": pricing.DefaultModel, "price": pricing.DefaultPrice},
+	})
+}
+
+// handleRatesPut upserts one rate. The body is a ledger.ModelRate JSON;
+// model and non-negative rates are required. An empty source defaults to
+// "manual" (a user edit); "openrouter" is written by the dashboard when
+// persisting a catalog pick.
+func (s *Server) handleRatesPut(w http.ResponseWriter, r *http.Request) {
+	var rate ledger.ModelRate
+	if err := json.NewDecoder(r.Body).Decode(&rate); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if rate.Model == "" {
+		http.Error(w, "model is required", http.StatusBadRequest)
+		return
+	}
+	if rate.Input < 0 || rate.CacheRead < 0 || rate.CacheWrite < 0 || rate.Output < 0 {
+		http.Error(w, "rates must be non-negative", http.StatusBadRequest)
+		return
+	}
+	if rate.Source != "openrouter" && rate.Source != "manual" {
+		rate.Source = "manual"
+	}
+	rate.UpdatedAtMS = time.Now().UnixMilli()
+	if err := s.db.UpsertModelRate(rate); err != nil {
+		httpError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(rate)
+}
+
+// handleRatesDelete removes one cached rate: /api/rates?model=<key>.
+func (s *Server) handleRatesDelete(w http.ResponseWriter, r *http.Request) {
+	model := r.URL.Query().Get("model")
+	if model == "" {
+		http.Error(w, "model is required", http.StatusBadRequest)
+		return
+	}
+	if err := s.db.DeleteModelRate(model); err != nil {
+		httpError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]bool{"deleted": true})
 }

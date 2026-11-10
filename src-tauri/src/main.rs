@@ -184,7 +184,7 @@ fn open_dashboard(app: &tauri::AppHandle) {
     }
     let url: tauri::Url = DASHBOARD_URL.parse().expect("dashboard url");
     let _ = WebviewWindowBuilder::new(app, "dashboard", WebviewUrl::External(url))
-        .title("tokenledger")
+        .title("TokL - Token Literacy")
         .inner_size(1100.0, 760.0)
         .min_inner_size(390.0, 400.0)
         .build();

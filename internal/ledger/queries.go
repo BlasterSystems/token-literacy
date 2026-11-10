@@ -202,6 +202,90 @@ func (d *DB) PerTurnCount(harness string) (int64, error) {
 	return n, err
 }
 
+// ModelRate is one cached per-model list price in USD per million tokens.
+// Source is "openrouter" (catalog snapshot) or "manual" (user edit).
+type ModelRate struct {
+	Model       string  `json:"model"`
+	Name        string  `json:"name"`
+	Input       float64 `json:"input"`
+	CacheRead   float64 `json:"cache_read"`
+	CacheWrite  float64 `json:"cache_write"`
+	Output      float64 `json:"output"`
+	Source      string  `json:"source"`
+	UpdatedAtMS int64   `json:"updated_at"`
+}
+
+// ModelRates returns all cached rates ordered by model id.
+func (d *DB) ModelRates() ([]ModelRate, error) {
+	rows, err := d.db.Query(`SELECT model, name, input, cache_read, cache_write, output, source, updated_at
+		FROM model_rates ORDER BY model`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ModelRate
+	for rows.Next() {
+		var r ModelRate
+		if err := rows.Scan(&r.Model, &r.Name, &r.Input, &r.CacheRead, &r.CacheWrite, &r.Output, &r.Source, &r.UpdatedAtMS); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// UpsertModelRate stores one rate row keyed by model.
+func (d *DB) UpsertModelRate(r ModelRate) error {
+	_, err := d.db.Exec(`INSERT INTO model_rates (model, name, input, cache_read, cache_write, output, source, updated_at)
+		VALUES (?,?,?,?,?,?,?,?)
+		ON CONFLICT(model) DO UPDATE SET name=excluded.name, input=excluded.input, cache_read=excluded.cache_read,
+			cache_write=excluded.cache_write, output=excluded.output, source=excluded.source, updated_at=excluded.updated_at`,
+		r.Model, r.Name, r.Input, r.CacheRead, r.CacheWrite, r.Output, r.Source, r.UpdatedAtMS)
+	return err
+}
+
+// DeleteModelRate removes a cached rate; deleting a missing row is not an error.
+func (d *DB) DeleteModelRate(model string) error {
+	_, err := d.db.Exec(`DELETE FROM model_rates WHERE model=?`, model)
+	return err
+}
+
+// UnpricedGroups aggregates token totals per model for rows stored without a
+// cost (cost_usd IS NULL). The dashboard uses it to estimate their
+// API-equivalent value at current rates; exports keep the raw stored costs.
+func (d *DB) UnpricedGroups(f RowsFilter) ([]UnpricedGroup, error) {
+	q := `SELECT model, COALESCE(SUM(input_uncached),0), COALESCE(SUM(cache_read),0),
+		COALESCE(SUM(cache_write),0), COALESCE(SUM(output),0), COUNT(*)
+		FROM calls
+		WHERE cost_usd IS NULL AND (?=0 OR started_at>=?) AND (?='' OR harness=?) AND (?='' OR session_id=?)
+		GROUP BY model`
+	args := []any{f.SinceMS, f.SinceMS, f.Harness, f.Harness, f.Session, f.Session}
+	rows, err := d.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []UnpricedGroup
+	for rows.Next() {
+		var g UnpricedGroup
+		if err := rows.Scan(&g.Model, &g.InputFresh, &g.CacheRead, &g.CacheWrite, &g.Output, &g.Calls); err != nil {
+			return nil, err
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}
+
+// UnpricedGroup is one model's token totals among unpriced rows.
+type UnpricedGroup struct {
+	Model      string `json:"model"`
+	InputFresh int64  `json:"input_fresh"`
+	CacheRead  int64  `json:"cache_read"`
+	CacheWrite int64  `json:"cache_write"`
+	Output     int64  `json:"output"`
+	Calls      int64  `json:"calls"`
+}
+
 // GetCursor returns the stored (inode, offset) cursor and parser state for
 // a source. state is "" when none was persisted.
 func (d *DB) GetCursor(source string) (inode int64, offset int64, state string, ok bool, err error) {
