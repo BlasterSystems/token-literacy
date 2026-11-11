@@ -45,7 +45,7 @@ fn main() {
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &doctor, &copy, &quit])?;
 
-            TrayIconBuilder::with_id("main")
+            let tray = TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().expect("app icon").clone())
                 .tooltip("tokenledger")
                 .menu(&menu)
@@ -60,6 +60,10 @@ fn main() {
                     _ => {}
                 })
                 .build(app)?;
+            // TrayIcon is reference-counted: dropping the last instance
+            // removes the status item. Keep it alive for the app lifetime,
+            // or an accessory app (no Dock icon) becomes invisible.
+            app.manage(tray);
 
             // Spawn + supervise the bundled collector.
             spawn_collector(app.handle().clone());
