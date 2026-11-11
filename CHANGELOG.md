@@ -10,6 +10,10 @@ All notable changes to token-literacy are documented here. The format follows [K
 - **Default API price**: models with no known list price are costed at Claude Opus 5.5 list rates ($4 / $0.20 / $5 / $20 per 1M in/read/write/out) and marked `cost_source=default_price` (`≈` prefix in the dashboard cost column) instead of `none`.
 - **DS v1.1 dashboard**: the dashboard now uses the BlasterSystems Design System v1.1 (oklch identity tokens, Fira Sans + DM Mono embedded — still no remote assets), with the product lockup, StatCards with computed InfoTips, ledger-line filters, width-aware charts (stacked bars with thread-outlined output, hit-rate line with peak annotation), and a system-plus-toggle theme remembered in localStorage.
 
+### Fixed
+
+- Charts re-render when the window is resized and chart panels contain their overflow, so a narrowed window no longer forces page-level horizontal scrolling that clipped both edges.
+
 ### Changed
 
 - Price lookup resolves the longest matching override prefix deterministically; previously several matching prefixes resolved by map order.
