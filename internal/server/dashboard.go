@@ -185,6 +185,9 @@ button{font:inherit;color:inherit}
 .bs-theme>span{width:13px;height:13px;border:1.5px solid currentColor;border-radius:50%;background:linear-gradient(90deg,currentColor 50%,transparent 50%)}
 
 .bs-chart{display:flex;flex-direction:column;gap:8px;min-width:0}
+.grid2>.bs-panel{min-width:0}
+#rate{overflow:hidden}
+#bars{overflow-x:auto}
 .bs-chart__y{position:absolute;left:0;width:38px;transform:translateY(-50%);text-align:right;font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
 .bs-chart__x{position:relative;height:14px;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
 .bs-chart__x>span{position:absolute;top:0}
@@ -465,7 +468,7 @@ function rateSVG(data, W){
   return '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block">' + out + '</svg>';
 }
 
-(function renderCharts(){
+function renderCharts(){
   const bars = document.getElementById('bars'), rate = document.getElementById('rate');
   if (!CHART.length) {
     bars.innerHTML = '<p class="bs-note" style="padding:8px">no turns in range</p>';
@@ -473,13 +476,21 @@ function rateSVG(data, W){
     return;
   }
   bars.innerHTML = barsSVG(CHART, Math.max(bars.clientWidth || 320, 320));
-  document.getElementById('bars-y').innerHTML = [0,.5,1].map(f =>
-    '<span class="bs-chart__y" style="top:' + (PADT + (H-PADT)*f) + 'px">' + fmt(Math.round(Math.max(...CHART.map(d=>d.u+d.r+d.w+d.o)) * (1-f))) + '</span>').join('');
+  document.getElementById('bars-y').innerHTML = [0,.5,1].map(f => {
+    const maxTot = Math.max(...CHART.map(d => d.u + d.r + d.w + d.o), 1);
+    return '<span class="bs-chart__y" style="top:' + (PADT + (H-PADT)*f) + 'px">' + fmt(Math.round(maxTot * (1-f))) + '</span>';
+  }).join('');
   rate.innerHTML = rateSVG(CHART, Math.max(rate.clientWidth || 320, 320));
   const x0 = dt(CHART[0].t), x1 = dt(CHART[CHART.length-1].t);
   document.getElementById('bars-x0').textContent = x0; document.getElementById('bars-x1').textContent = x1;
   document.getElementById('rate-x0').textContent = x0; document.getElementById('rate-x1').textContent = x1;
-})();
+}
+renderCharts();
+let resizeTimer = null;
+window.addEventListener('resize', function(){
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderCharts, 150);
+});
 
 /* ===== model pricing: OpenRouter search + cached overrides ===== */
 const $ = id => document.getElementById(id);
