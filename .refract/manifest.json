@@ -1,0 +1,187 @@
+{
+  "schema": "refract-manifest/v1",
+  "generator_version": "0.3.1",
+  "platforms": [
+    "claude",
+    "omp"
+  ],
+  "updated_at": "2026-11-19T19:21:05+00:00",
+  "files": {
+    ".agents/skills/commit/SKILL.md": {
+      "sha256": "5449d4390e7a837ad89f4ec5c26fb67b6170e5b2bac6cf12a13ff230a0c87644",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/confidence-check/SKILL.md": {
+      "sha256": "c0699c1314eb574f30b1fc1714723083cc0f02986c891aac5ffa560aa2713313",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/deploy-dev/SKILL.md": {
+      "sha256": "ff57029b7fd7dedb296ed76b2aafad328f785df75148d7fe1dd8bc1ce5885a8d",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/deploy-prd/SKILL.md": {
+      "sha256": "8b8b2d58dec4da08ffc2d40400a7a532a0b178db2d0e5de76889262d4bc80576",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/hotfix/SKILL.md": {
+      "sha256": "452223c77ad4189bdb762f14befb2eeb8224471ed50fbedea9f98ad87174e4f1",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/implement/SKILL.md": {
+      "sha256": "8dd837bc1769629d2e4a882365b701dc8d3795f02613185a610ae6f808d1b3c1",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/quality-review/SKILL.md": {
+      "sha256": "441349b4cee64459dc165ccbe2921bedf56dd2ac9dd1d1cf31d44308e03ec3d2",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/refract/SKILL.md": {
+      "sha256": "10cf044272179b39196f5000222ea5af331f26583f7ad869a29cdcd4e0c459e1",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/research/SKILL.md": {
+      "sha256": "aeff7c707d6b3b039b948efe69af404d8358c102e89cc68018276fe26b816573",
+      "executable": false,
+      "mutable": false
+    },
+    ".agents/skills/security-check/SKILL.md": {
+      "sha256": "017e3e00482da409957457c54e25bf47d78dc9e76446c16d5bf8d20e99c404b3",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/settings.json": {
+      "sha256": "62bc907fbb124764b2a923548ab587fe80ebf02ea1ac26456acf1eadc90866e9",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/commit/SKILL.md": {
+      "sha256": "5449d4390e7a837ad89f4ec5c26fb67b6170e5b2bac6cf12a13ff230a0c87644",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/confidence-check/SKILL.md": {
+      "sha256": "c0699c1314eb574f30b1fc1714723083cc0f02986c891aac5ffa560aa2713313",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/deploy-dev/SKILL.md": {
+      "sha256": "ff57029b7fd7dedb296ed76b2aafad328f785df75148d7fe1dd8bc1ce5885a8d",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/deploy-prd/SKILL.md": {
+      "sha256": "8b8b2d58dec4da08ffc2d40400a7a532a0b178db2d0e5de76889262d4bc80576",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/hotfix/SKILL.md": {
+      "sha256": "452223c77ad4189bdb762f14befb2eeb8224471ed50fbedea9f98ad87174e4f1",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/implement/SKILL.md": {
+      "sha256": "8dd837bc1769629d2e4a882365b701dc8d3795f02613185a610ae6f808d1b3c1",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/quality-review/SKILL.md": {
+      "sha256": "441349b4cee64459dc165ccbe2921bedf56dd2ac9dd1d1cf31d44308e03ec3d2",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/refract/SKILL.md": {
+      "sha256": "10cf044272179b39196f5000222ea5af331f26583f7ad869a29cdcd4e0c459e1",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/research/SKILL.md": {
+      "sha256": "aeff7c707d6b3b039b948efe69af404d8358c102e89cc68018276fe26b816573",
+      "executable": false,
+      "mutable": false
+    },
+    ".claude/skills/security-check/SKILL.md": {
+      "sha256": "017e3e00482da409957457c54e25bf47d78dc9e76446c16d5bf8d20e99c404b3",
+      "executable": false,
+      "mutable": false
+    },
+    ".githooks/pre-commit": {
+      "sha256": "3181c2ac88dc2a07d723f02facf036c93ca8c9289646f8a7a75f45eb45568aab",
+      "executable": true,
+      "mutable": false
+    },
+    ".github/PULL_REQUEST_TEMPLATE.md": {
+      "sha256": "2666448d663cc49665b673518e6d0582940b22a4b5bda8310172234f8a57deaa",
+      "executable": false,
+      "mutable": true
+    },
+    ".omp/agents/architecture-reviewer.md": {
+      "sha256": "b36319d5c599938c9a97a71f4e8e946a2414a27b85baffb3d74d7c37f67eb71f",
+      "executable": false,
+      "mutable": false
+    },
+    ".omp/hooks/post/refract-check.ts": {
+      "sha256": "f602ed2a08967a0a6c0359083822acf78485c78d3187d58e6f181f03bdf469f5",
+      "executable": false,
+      "mutable": false
+    },
+    ".omp/mcp.json": {
+      "sha256": "fce4dbd6f3476e6ba72f643e541aa12c70b4a13f129021b9cbcca3fd3bece200",
+      "executable": false,
+      "mutable": false
+    },
+    ".omp/settings.json": {
+      "sha256": "1a4252d75253efb17986fed960801a10b3912addc7d1215eba7aaf6d59905bfa",
+      "executable": false,
+      "mutable": false
+    },
+    ".refract/bin/agent-check": {
+      "sha256": "42432c2b6290ed7dda3ff96a52c0865b7708d80f08f5808a272970a1e84b015b",
+      "executable": true,
+      "mutable": false
+    },
+    ".refract/bin/deploy-ready": {
+      "sha256": "3e15d91154cee9a5e67a865fe441621e6a5f60b09b35451f20fcffa55586c50f",
+      "executable": true,
+      "mutable": false
+    },
+    ".refract/bin/docs-check": {
+      "sha256": "3f56c46b7589e23cd2b1df778f4291233d8d9b139a73efb3b969e8c758c40840",
+      "executable": true,
+      "mutable": false
+    },
+    ".refract/bin/validate": {
+      "sha256": "e7cb7098d8329763f653826f7111c79a3f0293e9adaa07ffab5dca3cae6131d6",
+      "executable": true,
+      "mutable": false
+    },
+    ".refract/config.json": {
+      "sha256": "2b941bd4d9d9e83613fdb37edc21d41be2bda6d25631f2f65a73fd49579e89f1",
+      "executable": false,
+      "mutable": false
+    },
+    "docs/DEPLOYMENT.md": {
+      "sha256": "a9dd435000b2358365c413fe49fafe1ebbffa5432569dadc021d0910259fed78",
+      "executable": false,
+      "mutable": true
+    },
+    "docs/branches/README.md": {
+      "sha256": "258542f720999b770dd00a07a1090ba0e0f7a72f1f3cd2f9acac0b131bd8ff0c",
+      "executable": false,
+      "mutable": true
+    },
+    "setup-hooks.sh": {
+      "sha256": "1a1cfd3e62eb2e9042533e6d9c285de05684b0270a35a8d310ca59f5456aa0e3",
+      "executable": true,
+      "mutable": false
+    }
+  },
+  "seed_hashes": "generated"
+}
