@@ -16,9 +16,11 @@ owned by the project.
   `bin/validate`, `bin/docs-check`, `bin/agent-check`, `bin/deploy-ready` launchers.
 - Added omp platform files: `.omp/agents/architecture-reviewer.md`,
   `.omp/hooks/post/refract-check.ts`, `.omp/mcp.json`, `.omp/settings.json`.
-- Added permission policies (`.claude/settings.json`), GitHub PR template
-  (`.github/PULL_REQUEST_TEMPLATE.md`), git hook (`.githooks/pre-commit`),
-  `setup-hooks.sh`, `docs/DEPLOYMENT.md` seed, and `docs/branches/`.
+- Added GitHub PR template (`.github/PULL_REQUEST_TEMPLATE.md`), git hook
+  (`.githooks/pre-commit`), `setup-hooks.sh`, `docs/DEPLOYMENT.md` seed, and `docs/branches/`.
+- Permission policies were removed at the owner's request: `.claude/settings.json` keeps only
+  the refract Stop hook and `.omp/settings.json` keeps only the autolearn scope guard
+  (`tools.approvalMode` block dropped; `.refract/config.json` records `permissions: false`).
 - No existing file was modified or deleted; 23 pre-existing files at generated paths were
   kept as project-owned (including `AGENTS.md`, `CLAUDE.md`, `.mcp.json`,
   `.github/workflows/docs-check.yml`).
@@ -61,5 +63,7 @@ owned by the project.
 
 ## Changelog
 
+- 2026-11-19 — Removed the refract permission policies at the owner's request via a verified retrofit re-apply (plan `7afe02a8…`): `permissions: false` in `.refract/config.json`; Stop hook and autolearn guard retained; hook re-pinned.
+- 2026-11-19 — Documented the refract agent workflow configuration in `docs/CONFIGURATION.md`; resolves the docs-coverage gap flagged by the strict docs check on the PR.
 - 2026-11-19 — Bootstrapped refract 0.3.1 agent workflow (additive retrofit,
   `--keep-existing`); installed pinned pre-commit hook.

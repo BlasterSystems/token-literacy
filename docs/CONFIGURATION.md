@@ -67,3 +67,23 @@ Optional. Maps a model-id prefix to USD-per-million-token rates; overrides win o
 ## Autostart
 
 `tokenledger install` writes a per-user login item — `~/Library/LaunchAgents/com.blastersystems.tokenledger.plist` on macOS (loaded with `launchctl`), `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\com.blastersystems.tokenledger` on Windows. Never a system service, no admin rights. `tokenledger uninstall` removes it; `--purge` also deletes `~/.tokenledger` (ledger included); `--keep-config` leaves harness markers untouched.
+
+## Repository agent workflow (refract)
+
+Development-time configuration managed by [refract](https://github.com/BlasterSystems/refract) (v0.3.1); it does not affect the shipped binary. `AGENTS.md` is the entry point for coding agents.
+
+| File | Purpose |
+|---|---|
+| `.refract/config.json` | Refract control file: project facts (`name`, `build_command: make build`, `test_command: make test`, `run_command: make run`, ticket prefix `TL`) and the commands the hook runs |
+| `.refract/bin/validate` | Deterministic project validation (docs, ADR index, task conventions); run anywhere: `.refract/bin/validate` |
+| `.refract/bin/docs-check` | Documentation coverage check used by `.github/workflows/docs-check.yml` |
+| `.refract/bin/agent-check` | Agent end-of-turn validation |
+| `.refract/bin/deploy-ready` | Gates deploy skills; passes only when `docs/DEPLOYMENT.md` is filled in with `Status: CONFIGURED` |
+| `.githooks/pre-commit` + `setup-hooks.sh` | Git hook; activate with `./setup-hooks.sh`, which installs a hash-pinned launcher running validate, gitleaks (if installed), docs-check, `make test`, and `make build` |
+| `.claude/settings.json` | Claude Code project settings registering refract's Stop hook (end-of-turn validation); permission policies are intentionally not installed |
+| `.agents/skills/`, `.claude/skills/` | Workflow skills (research → implement → review → commit → deploy); invoke `/skill:<name>` in omp, `/<name>` in Claude Code |
+| `.omp/` | omp settings, MCP config, reviewer subagent, end-of-turn hook |
+| `docs/DEPLOYMENT.md` | Deployment pipeline description; seed until filled in |
+| `docs/branches/` | Living per-branch documents, maintained by the `commit` skill |
+
+Pre-existing project-owned files were kept on retrofit: `AGENTS.md`, `CLAUDE.md`, `.mcp.json`, the four earlier skills, and the existing docs and workflows.
