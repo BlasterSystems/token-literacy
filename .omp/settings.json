@@ -1,8 +1,5 @@
 {
   "autolearn": {
     "enabled": false
-  },
-  "tools": {
-    "approvalMode": "always-ask"
   }
 }

@@ -28,17 +28,17 @@
       "github": true,
       "scheduled_audit": false,
       "hooks": true,
-      "permissions": true
+      "permissions": false
     },
     "effective_by_platform": {
       "claude": {
-        "permissions": true,
+        "permissions": false,
         "agents": true,
         "mcp": true,
         "hooks": true
       },
       "omp": {
-        "permissions": true,
+        "permissions": false,
         "agents": true,
         "mcp": true,
         "hooks": true
