@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I -c 'import hashlib,json,os,subprocess,sys,tempfile\nr=os.path.abspath(sys.argv[1] or os.curdir)\nwhile not os.path.isfile(os.path.join(r,\".refract/bin/agent-check\")) and os.path.dirname(r)!=r:\n r=os.path.dirname(r)\ndef read(rel):\n p=os.path.join(r,rel)\n try:\n  return None if os.path.islink(p) else open(p,\"rb\").read()\n except OSError:\n  return None\nverified={}\nfor rel,digest in json.loads(sys.argv[2]).items():\n data=read(rel)\n if data is None or hashlib.sha256(data).hexdigest()!=digest:\n  print(json.dumps({\"systemMessage\":\"refract hook skipped: hook scripts do not match the generated hashes; re-run refract\"}))\n  sys.exit(0)\n verified[rel]=data\nwith tempfile.TemporaryDirectory() as private:\n copies={}\n for rel,data in verified.items():\n  copies[rel]=os.path.join(private,os.path.basename(rel))\n  open(copies[rel],\"wb\").write(data)\n env=dict(os.environ,REFRACT_ROOT=r,REFRACT_VALIDATOR=copies[\".refract/bin/validate\"])\n sys.exit(subprocess.call([sys.executable,\"-I\",copies[\".refract/bin/agent-check\"],\"--format\",\"json\"],env=env))' \"${CLAUDE_PROJECT_DIR:-$PWD}\" '{\".refract/bin/agent-check\":\"42432c2b6290ed7dda3ff96a52c0865b7708d80f08f5808a272970a1e84b015b\",\".refract/bin/validate\":\"e7cb7098d8329763f653826f7111c79a3f0293e9adaa07ffab5dca3cae6131d6\"}'",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
